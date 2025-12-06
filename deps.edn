@@ -1,0 +1,2 @@
+{:paths ["resources" "src" "target"]
+ :deps {com.bhauman/figwheel-main {:mvn/version "0.2.20"}}}
