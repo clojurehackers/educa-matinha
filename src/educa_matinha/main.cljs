@@ -21,13 +21,13 @@
          [:div.grid-cell
           {:key (str row "-" col)
            :style (merge
-                   {:background-image (get-in @game-state [:grid row col])}
                    ; For debug purpose only
                    (if (:debug? @game-state)
                      {:background-color "#f0f0f0"
                       :border "1px solid #ddd"
                       :box-sizing "border-box"}
-                     {}))}])]]
+                     {})
+                   {:background-color (get-in @game-state [:grid row col])})}])]]
      [:div
       [:div.h1 "game not started"]
       [:a.start-button {:onClick start-game}
