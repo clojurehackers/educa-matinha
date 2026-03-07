@@ -9,16 +9,16 @@
 
 (js/console.log (what-kind?))
 
-(defonce game-state (atom {:started false}))
+(defonce game-state (atom {:started? false}))
 
 (defn start-game
   []
-  (swap! game-state assoc :started (not (:started @game-state))))
+  (swap! game-state assoc :started? (not (:started? @game-state))))
 
 (defn main-template []
-  (sab/html [:div.h1 (if (:started @game-state) "game started" "game not started")
+  (sab/html [:div.h1 (if (:started? @game-state) "game started" "game not started")
              (sab/html [:a.start-button {:onClick start-game}
-                        (if (:started @game-state)
+                        (if (:started? @game-state)
                           "QUIT"
                           "START")])]))
 
