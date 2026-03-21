@@ -1,6 +1,6 @@
 {:paths ["resources" "src" "target"]
- :deps {com.bhauman/figwheel-main {:mvn/version "0.2.20"}
-        org.clojure/core.async {:mvn/version "1.7.701"}
-        cljsjs/react-dom {:mvn/version "18.0.0-rc.0-0"}        ;; for sablono
-        cljsjs/react {:mvn/version "18.0.0-rc.0-0"}            ;; for sablono
-        sablono/sablono {:mvn/version "0.8.6"}}}
+ :deps  {com.bhauman/figwheel-main {:mvn/version "0.2.20"}
+         org.clojure/core.async    {:mvn/version "1.7.701"}
+         cljsjs/react-dom          {:mvn/version "18.0.0-rc.0-0"}        ;; for sablono
+         cljsjs/react              {:mvn/version "18.0.0-rc.0-0"}        ;; for sablono
+         sablono/sablono           {:mvn/version "0.8.6"}}}
