@@ -5,7 +5,7 @@
    [sablono.core :as sab :include-macros true]))
 
 (defonce game-state (atom {:started? false
-                           :debug? false}))
+                           :debug?   false}))
 
 (defn start-game
   []
@@ -26,13 +26,13 @@
                is-player? (and (= row (:row player-pos))
                                (= col (:col player-pos)))]
            [:div.grid-cell
-            {:key (str row "-" col)
+            {:key   (str row "-" col)
              :style (merge
-                     ; For debug purpose only
+                                        ; For debug purpose only
                      (if (:debug? @game-state)
                        {:background-color "#f0f0f0"
-                        :border "1px solid #ddd"
-                        :box-sizing "border-box"}
+                        :border           "1px solid #ddd"
+                        :box-sizing       "border-box"}
                        {})
                      {:background-color
                       (if is-player?
@@ -45,12 +45,12 @@
 
 (defn jump [e]
   (when (:started? @game-state)
-    (let [key (.-key e)
+    (let [key               (.-key e)
           {:keys [row col]} (-> @game-state :player :pos)
-          new-pos {:row (if (<= row 1)
-                          0
-                          (- row 2))
-                   :col col}]
+          new-pos           {:row (if (<= row 1)
+                                    0
+                                    (- row 2))
+                             :col col}]
       (when (= key " ")
         (.preventDefault e)
         (swap! game-state assoc-in [:player :pos] new-pos)))))
