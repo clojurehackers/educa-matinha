@@ -7,11 +7,13 @@
      [java.lang Thread]))
 
 (defonce game-state (atom {:started? false
-                           :debug?   true}))
+                           :debug?   true
+                           :jumping? false}))
 
 (defonce left-tree-positions #{0 10 20 35})
 (defonce right-tree-positions #{0 10 20 30 49})
 (def floor 39)
+(def g -1)
 
 (defn start-game
   []
@@ -74,27 +76,30 @@
    (fn [resolve _reject]
      (js/setTimeout resolve ms))))
 
-(defn gravity []
+(defn gravity [vel]
   (let [player-pos (-> @game-state :player :pos)
         y (:row player-pos)
         ykey (keyword (str y))
-        xkey (keyword (str (:col player-pos)))]
-    (when (and (< y floor) ()#_(= false (-> @game-state :trees :pos ykey xkey))) ;this has a bug
-      (js/setTimeout (fn [] (do (swap! game-state assoc-in [:player :pos :row] (+ y 1))
+        xkey (keyword (str (:col player-pos)))
+        new-vel (- vel g)
+        y-new (min floor (+ y new-vel))
+        _ (when (= floor y-new) (swap! game-state assoc :jumping? false))]
+    (when (or (not= y floor) (:jumping? @game-state) #_(= false (-> @game-state :trees :pos ykey xkey))) ;this has a bug 
+      (println "here: " (-> @game-state :player :pos))
+      (js/setTimeout (fn [] (do (swap! game-state assoc-in [:player :pos :row] y-new)
                                 (println "going down: " (-> @game-state :player :pos))
-                                (gravity))) 25))))
+                                (gravity new-vel))) 25))))
 
 (defn jump [e]
-  (when (:started? @game-state)
+  (when (and (:started? @game-state) (not= true (:jumping? @game-state)))
     (let [key               (.-key e)
           {:keys [row col]} (-> @game-state :player :pos)
-          new-pos           {:row (if (= row floor) (- row 5) row)
-                             :col col}]
+          ini-vel -6]
       (when (= key " ")
         (.preventDefault e)
-        (swap! game-state assoc-in [:player :pos] new-pos)
-        (println "player-pos" (-> @game-state :player :pos))
-        (gravity)))))
+        (swap! game-state assoc :jumping? true)
+        (println "jumping: " (-> @game-state :jumping?))
+        (gravity ini-vel)))))
 
 (defn walk [e]
   (when (:started? @game-state)
