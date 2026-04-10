@@ -1,5 +1,14 @@
+:root {
+  --container-padding: 16px;
+  --usable-width: calc(100vw - (var(--container-padding) * 2));
+  --usable-height: calc(100vh - (var(--container-padding) * 2));
+  --cell-size: 18px;
+}
+
 body {
-	color: red;
+  margin: 0;
+  color: red;
+  overflow: hidden;
 }
 
 .start-button:hover {
@@ -27,25 +36,45 @@ body {
 .center-container {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  min-height: 100vh;
+  height: 100vh;
   width: 100%;
+  padding: var(--container-padding);
+  box-sizing: border-box;
 }
 
 .grid-container {
   display: grid;
-  grid-template-columns: repeat(20, 16px);
-  grid-template-rows: repeat(40, 16px);
-  width: 320px;
-  height: 640px;
+  position: relative;
+  overflow: hidden;
 }
 
 /* Debug only */
 .grid-cell {
-  width: 16px;
-  height: 16px;
-  /* background-color: #f0f0f0; */
-  /* border: 1px solid #ddd; */
-  /* box-sizing: border-box; */
+  width: var(--cell-size);
+  height: var(--cell-size);
+  box-sizing: border-box;
+}
+
+.tree-image {
+  position: relative;
+  display: block;
+  width: calc(var(--cell-size) * 2);
+  height: calc(var(--cell-size) * 2);
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.player-dot {
+  position: absolute;
+  width: var(--cell-size);
+  height: var(--cell-size);
+  background-color: red;
+  pointer-events: none;
+  z-index: 10;
+  will-change: transform;
 }
