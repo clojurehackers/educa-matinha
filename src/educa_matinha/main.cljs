@@ -8,16 +8,31 @@
 
 (def initial-trees (vec (repeat (* 20 40) 0)))
 
-(defonce game-state (atom {:started? false 
-                       :debug?   true 
-                       :jumping? false 
-                       :tree-pos initial-trees}))
-
+(defonce game-state (atom {:started? false
+                           :debug?   true
+                           :jumping? false
+                           :tree-pos initial-trees}))
 
 (defonce left-tree-positions #{0 10 20 35})
 (defonce right-tree-positions #{0 10 20 30 49})
 (def floor 39)
 (def g -2)
+
+(defn get-pos
+  [row col]
+  (+ (* row 20) col))
+
+(defn tree-positions []
+  (vec
+   (concat
+    (mapcat (fn [row]
+              (map #(get-pos row %)
+                   (range 0 7)))
+            left-tree-positions)
+    (mapcat (fn [row]
+              (map #(get-pos row %)
+                   (range 13 20)))
+            right-tree-positions))))
 
 (defn start-game
   []
@@ -25,25 +40,18 @@
          (fn [state]
            (-> state
                (assoc :started? (not (:started? @game-state)))
-               (assoc :player {:pos {:row floor :col 10}})))))
+               (assoc :player {:pos {:row floor :col 10}})
+               (assoc :tree-pos (tree-positions))))))
 
 (defn set-tree ;fix bug
   [pos]
   (swap! game-state assoc-in [:tree-pos pos] 1))
 
-
-(defn get-pos
-  [row col]
-  (+ (* row 20) col))
-
 (defn tree
   [row col dir]
-  (let [tree-width 7]
-      #_(print row col)
-      (map set-tree (for [c (range col (+ col 7))] (get-pos row c)))
-      (sab/html [:div.grid-cell
-                 {:key   (str row "-" col)}
-                 [:img {:src (str "../../images/" dir "-tree.png")}]])))
+  (sab/html [:div.grid-cell
+             {:key (str row "-" col)}
+             [:img {:src (str "../../images/" dir "-tree.png")}]]))
 
 (defn main-template []
   (sab/html
@@ -89,7 +97,7 @@
         new-vel (- vel g)
         y-new (min floor (+ y new-vel))
         _ (when (= floor y-new) (swap! game-state assoc :jumping? false))]
-    (when (or (not= y floor) (:jumping? @game-state) #_(= false (-> @game-state :trees :pos ykey xkey))) ;this has a bug 
+    (when (or (not= y floor) (:jumping? @game-state) #_(= false (-> @game-state :trees :pos ykey xkey))) ;this has a bug
       (println "here: " (-> @game-state :player :pos))
       (js/setTimeout (fn [] (do (swap! game-state assoc-in [:player :pos :row] y-new)
                                 (println "going down: " (-> @game-state :player :pos))
@@ -134,5 +142,5 @@
 
 (.addEventListener js/document "keydown" jump)
 (.addEventListener js/document "keydown" walk)
-#_d(.addEventListener js/document "keydown" (print @game-state) )
+#_d (.addEventListener js/document "keydown" (print @game-state))
 ;; TODO: event listener keypress C-c d toggle debug
