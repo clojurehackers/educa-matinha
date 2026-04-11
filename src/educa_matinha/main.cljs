@@ -6,14 +6,18 @@
   #_(:import
      [java.lang Thread]))
 
-(defonce game-state (atom {:started? false
-                           :debug?   true
-                           :jumping? false}))
+(def initial-trees (vec (repeat (* 20 40) 0)))
+
+(defonce game-state (atom {:started? false 
+                       :debug?   true 
+                       :jumping? false 
+                       :tree-pos initial-trees}))
+
 
 (defonce left-tree-positions #{0 10 20 35})
 (defonce right-tree-positions #{0 10 20 30 49})
 (def floor 39)
-(def g -1)
+(def g -2)
 
 (defn start-game
   []
@@ -24,21 +28,22 @@
                (assoc :player {:pos {:row floor :col 10}})))))
 
 (defn set-tree ;fix bug
-  [row col sz]
-  (when (and (>= row 0) (>= col 0) (> sz 0))
-    (println "setting tree at" row col)
-    (swap! game-state assoc-in [:trees :pos (keyword (str row)) (keyword (str col))] true)
-    (println "trees: " (:trees @game-state))
-    #_(set-tree row (+ 1 col) (- sz 1))))
+  [pos]
+  (swap! game-state assoc-in [:tree-pos pos] 1))
+
+
+(defn get-pos
+  [row col]
+  (+ (* row 20) col))
 
 (defn tree
   [row col dir]
   (let [tree-width 7]
-    (do
-      #_(set-tree row col 7)
+      #_(print row col)
+      (map set-tree (for [c (range col (+ col 7))] (get-pos row c)))
       (sab/html [:div.grid-cell
                  {:key   (str row "-" col)}
-                 [:img {:src (str "../../images/" dir "-tree.png")}]]))))
+                 [:img {:src (str "../../images/" dir "-tree.png")}]])))
 
 (defn main-template []
   (sab/html
@@ -129,4 +134,5 @@
 
 (.addEventListener js/document "keydown" jump)
 (.addEventListener js/document "keydown" walk)
+#_d(.addEventListener js/document "keydown" (print @game-state) )
 ;; TODO: event listener keypress C-c d toggle debug
