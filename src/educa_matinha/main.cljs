@@ -28,25 +28,23 @@
 (defn render-tree
   [{:keys [y l]}]
   (let [dir (if (= 0 l) "left" "right")]
-    (do
       (sab/html [:div
                  {:key   (str y "-" l)
                   :style {:margin-top (to-px (* 16 y))
                           :margin-left (to-px (* 16 l))
                           :position "absolute"}}
-                 [:img {:src (str "../../images/" dir "-tree.png")}]]))))
+                 [:img {:src (str "../../images/" dir "-tree.png")}]])))
 
 (defn render-player 
   [{:keys [player]}]
   (when player
     (let [{:keys [row col]} (player :pos)]
-      (do
         (sab/html [:div.grid-cell
                    {:key   (str row "-" col)
                     :style {:margin-top (to-px (* 16 row))
                             :margin-left (to-px (* 16 col))
                             :position "absolute"
-                            :background-color "blue"}}])))))
+                            :background-color "blue"}}]))))
 
 (defn collides? 
   "given the y trajectory and the x position of the player, 
@@ -102,7 +100,6 @@
                                :col (if (< col 19) (+ col 1) col)}
           left-pos           {:row row
                               :col (if (> col 0) (- col 1) col)}]
-      (do
         (cond
           (= key " ")
           (do
@@ -114,7 +111,7 @@
               (swap! game-state assoc-in [:player :pos] right-pos))
           (= key "a")
           (do (.preventDefault e)
-              (swap! game-state assoc-in [:player :pos] left-pos)))))))
+              (swap! game-state assoc-in [:player :pos] left-pos))))))
 
 (defn main-template []
   (sab/html
