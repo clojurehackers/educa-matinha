@@ -13,6 +13,8 @@
 (def floor 39)
 (def g -1)
 
+(defn to-px [num] (str num "px"))
+
 (defn start-game
   []
   (swap! game-state
@@ -22,38 +24,43 @@
                (assoc :player {:pos {:row floor :col 10}})))))
 
 (defn render-tree
-  [row col dir]
+  [{:keys [y l]}]
+  (let [dir (if (= 0 l) "left" "right")]
     (do
-      (sab/html [:div.grid-cell
-                 {:key   (str row "-" col)}
-                 [:img {:src (str "../../images/" dir "-tree.png")}]])))
+      (sab/html [:div
+                 {:key   (str y "-" l)
+                  :style {:margin-top (to-px (* 16 y))
+                          :margin-left (to-px (* 16 l))
+                          :position "absolute"}}
+                 [:img {:src (str "../../images/" dir "-tree.png")}]]))))
+
+(defn render-player 
+  [{:keys [player]}]
+  (when player
+    (let [{:keys [row col]} (player :pos)]
+      (do
+        (sab/html [:div.grid-cell
+                   {:key   (str row "-" col)
+                    :style {:margin-top (to-px (* 16 row))
+                            :margin-left (to-px (* 16 col))
+                            :position "absolute"
+                            :background-color "blue"}}])))))
 
 (defn main-template []
   (sab/html
    (if (:started? @game-state)
      [:div.center-container
       [:div.grid-container
-       (for [row (range 40)
-             col (range 20)]
-         (let [player-pos (-> @game-state :player :pos)
-               is-player? (and (= row (:row player-pos))
-                               (= col (:col player-pos)))]
+       (map render-tree left-tree-positions)
+       (map render-tree right-tree-positions)
+       (render-player @game-state)
+       (when (:debug? @game-state)
+         (for [row (range 40)
+               col (range 20)]
            [:div.grid-cell
             {:key   (str row "-" col)
-             :style (merge
-                                        ; For debug purpose only
-                     (if (:debug? @game-state)
-                       {:background-color "#f0f0f0"
-                        :border           "1px solid #ddd"
-                        :box-sizing       "border-box"}
-                       {})
-                     {:background-color
-                      (if is-player?
-                        "red"
-                        (get-in @game-state [:grid row col]))})}
-
-            (when (and (= col 0) (contains? left-tree-positions {:y row :l 0 :r 6})) (render-tree row col "left"))
-            (when (and (= col 13) (contains? right-tree-positions {:y row :l 13 :r 19})) (render-tree row col "right"))]))]]
+             :style {:border           "1px solid #ddd" 
+                     :box-sizing       "border-box"}}]))]]
      [:div
       [:div.h1 "game not started"]
       [:a.start-button {:onClick start-game}
