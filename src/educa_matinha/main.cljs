@@ -8,8 +8,8 @@
                            :debug?   true
                            :jumping? false}))
 
-(defonce left-tree-positions #{{:y 0 :tam 7} {:y 10 :tam 7} {:y 20 :tam 7} {:y 35 :tam 7}})
-(defonce right-tree-positions #{{:y 0 :tam 7} {:y 10 :tam 7} {:y 20 :tam 7} {:y 30 :tam 7}})
+(defonce left-tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6}})
+(defonce right-tree-positions #{{:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
 (def floor 39)
 (def g -1)
 
@@ -21,13 +21,12 @@
                (assoc :started? (not (:started? @game-state)))
                (assoc :player {:pos {:row floor :col 10}})))))
 
-(defn tree
+(defn render-tree
   [row col dir]
-  (let [tree-width 7]
     (do
       (sab/html [:div.grid-cell
                  {:key   (str row "-" col)}
-                 [:img {:src (str "../../images/" dir "-tree.png")}]]))))
+                 [:img {:src (str "../../images/" dir "-tree.png")}]])))
 
 (defn main-template []
   (sab/html
@@ -53,8 +52,8 @@
                         "red"
                         (get-in @game-state [:grid row col]))})}
 
-            (when (and (= col 0) (contains? left-tree-positions {:y row :tam 7})) (tree row col "left"))
-            (when (and (= col 13) (contains? right-tree-positions {:y row :tam 7})) (tree row col "right"))]))]]
+            (when (and (= col 0) (contains? left-tree-positions {:y row :l 0 :r 6})) (render-tree row col "left"))
+            (when (and (= col 13) (contains? right-tree-positions {:y row :l 13 :r 19})) (render-tree row col "right"))]))]]
      [:div
       [:div.h1 "game not started"]
       [:a.start-button {:onClick start-game}
@@ -65,48 +64,32 @@
    (fn [resolve _reject]
      (js/setTimeout resolve ms))))
 
-(defn is-tree-left? [y y-new col]
+(defn collides? 
+  "given the y trajectory and the x position of the player, 
+   returns true whether the player is on top of a tree"
+  [y y-new x]
   (let [next-tree     (->> left-tree-positions
+                           (into right-tree-positions)
                            (filter #(<= (+ y 1) (:y %)))
                            (filter #(>= y-new (:y %)))
+                           (filter #(<= x (:r %)))
+                           (filter #(>= x (:l %)))
                            first)
         next-tree-pos (:y next-tree)
-        next-tree-len (:tam next-tree)
-        colides?      (and (pos? next-tree-pos) (< col next-tree-len))]
+        colides?      (pos? next-tree-pos)]
     (cond
       colides?
       (- next-tree-pos 1)
       :else
       false)))
 
-(defn is-tree-right? [y y-new col]
-  (let [next-tree     (->> right-tree-positions
-                           (filter #(<= (+ y 1) (:y %)))
-                           (filter #(>= y-new (:y %)))
-                           first)
-        next-tree-pos (:y next-tree)
-        colides?      (and (pos? next-tree-pos) (> col 12))]
-    (cond 
-      colides? 
-      (- next-tree-pos 1)
-      :else
-      false)))
-
-(defn is-tree? [y y-new col]
-  (cond
-    (is-tree-right? y y-new col)
-    (is-tree-right? y y-new col)
-
-    (is-tree-left? y y-new col)
-    (is-tree-left? y y-new col)))
-
 (defn next-obstacle [y y-new col]
   (cond 
     (> y y-new) ; not droping 
     10000
 
-    (is-tree? y y-new col)
-    (is-tree? y y-new col)
+    (collides? y y-new col)
+    (collides? y y-new col)
 
     (>= y-new floor)
     floor
@@ -115,15 +98,12 @@
     10000))
 
 (defn gravity [vel started?]
-  (let [player-pos (-> @game-state :player :pos)
-        y          (:row player-pos)
-        x          (:col player-pos)
+  (let [{:keys [row col]} (-> @game-state :player :pos)
         new-vel    (- vel g)
-        y-new      (+ y new-vel)
-        obstacle   (next-obstacle y y-new x)
-        _          (println "here: " y y-new obstacle)
+        y-new      (+ row new-vel)
+        obstacle   (next-obstacle row y-new col)
         y-new      (min y-new obstacle)]
-    (when (or started? (and (not= y floor) (not= y obstacle)))
+    (when (or started? (not= row obstacle))
       (js/setTimeout (fn [] (do (swap! game-state assoc-in [:player :pos :row] y-new)
                                 (gravity new-vel false))) 25))))
 
