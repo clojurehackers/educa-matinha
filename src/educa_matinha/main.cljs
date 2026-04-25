@@ -6,12 +6,15 @@
 
 (defonce game-state (atom {:started? false
                            :debug?   true
-                           :jumping? false}))
+                           :jumping? false
+                           :vert-vel 0
+                           :hort-vel 0}))
 
 (defonce left-tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6}})
 (defonce right-tree-positions #{{:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
 (def floor 39)
 (def g -1)
+(def ini-vel -5)
 
 (defn to-px [num] (str num "px"))
 
@@ -104,27 +107,21 @@
     :else
     10000))
 
-(defn gravity [vel started?]
-  (let [{:keys [row col]} (-> @game-state :player :pos)
+(defn gravity []
+  (let [vel (@game-state :vert-vel)
+        started? (@game-state :jumping?)
+        {:keys [row col]} (-> @game-state :player :pos)
         new-vel    (- vel g)
         y-new      (+ row new-vel)
         obstacle   (next-obstacle row y-new col)
         y-new      (min y-new obstacle)]
     (when (or started? (not= row obstacle))
-      (js/setTimeout (fn [] (do (swap! game-state assoc-in [:player :pos :row] y-new)
-                                (gravity new-vel false))) 25))))
+      (js/setTimeout (fn [] (do (swap! game-state assoc-in [:jumping?] false)
+                                (swap! game-state assoc-in [:vert-vel] new-vel)
+                                (swap! game-state assoc-in [:player :pos :row] y-new)
+                                (gravity))) 25))))
 
-(defn jump [e]
-  (when (and (:started? @game-state) (not= true (:jumping? @game-state)))
-    (let [key     (.-key e)
-          ini-vel -6]
-      (when (= key " ")
-        (.preventDefault e)
-        (swap! game-state assoc :jumping? true)
-        (gravity ini-vel true)
-        (swap! game-state assoc :jumping? false)))))
-
-(defn walk [e]
+(defn move [e]
   (when (:started? @game-state)
     (let [key               (.-key e)
           {:keys [row col]} (-> @game-state :player :pos)
@@ -132,17 +129,20 @@
                                :col (if (< col 19) (+ col 1) col)}
           left-pos           {:row row
                               :col (if (> col 0) (- col 1) col)}]
-      (cond
-        (= key "d")
-        (do (.preventDefault e)
-            (swap! game-state assoc-in [:player :pos] right-pos)
-            (println "player-pos" (-> @game-state :player :pos)
-                     (gravity 0 true)))
-        (= key "a")
-        (do (.preventDefault e)
-            (swap! game-state assoc-in [:player :pos] left-pos)
-            (println "player-pos" (-> @game-state :player :pos)
-                     (gravity 0 true)))))))
+      (do
+        (cond
+          (= key " ")
+          (do
+            (.preventDefault e)
+            (swap! game-state assoc :jumping? true)
+            (swap! game-state assoc :vert-vel ini-vel))
+          (= key "d")
+          (do (.preventDefault e)
+              (swap! game-state assoc-in [:player :pos] right-pos))
+          (= key "a")
+          (do (.preventDefault e)
+              (swap! game-state assoc-in [:player :pos] left-pos)))
+        (gravity)))))
 
 (let [node (.getElementById js/document "app")]
   (defn renderer []
@@ -152,6 +152,5 @@
 
 (renderer)
 
-(.addEventListener js/document "keydown" jump)
-(.addEventListener js/document "keydown" walk)
+(.addEventListener js/document "keydown" move)
 ;; TODO: event listener keypress C-c d toggle debug
