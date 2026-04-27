@@ -39,12 +39,14 @@
   [{:keys [player]}]
   (when player
     (let [{:keys [row col]} (player :pos)]
-        (sab/html [:div.grid-cell
+        (sab/html [:div
                    {:key   (str row "-" col)
                     :style {:margin-top (to-px (* 16 row))
                             :margin-left (to-px (* 16 col))
+                            :width "16px"
+                            :height "16px"
                             :position "absolute"
-                            :background-color "blue"}}]))))
+                            :background-color "red"}}]))))
 
 (defn collides? 
   "given the y trajectory and the x position of the player, 
@@ -120,15 +122,10 @@
        (js/setTimeout (fn [] (gravity)) 25)
        [:div.center-container
         [:div.grid-container
-         (map render-tree tree-positions)
-         (render-player @game-state)
-         (when (:debug? @game-state)
-             (for [row (range 40)
-                   col (range 20)]
-               [:div.grid-cell
-                {:key   (str row "-" col)
-                 :style {:border           "1px solid #ddd"
-                         :box-sizing       "border-box"}}]))]])
+          [:img {:src "../../images/background.png"
+                 :style {:position "absolute"}}]
+           (map render-tree tree-positions)
+           (render-player @game-state)]])
      [:div
       [:div.h1 "game not started"]
       [:a.start-button {:onClick start-game}

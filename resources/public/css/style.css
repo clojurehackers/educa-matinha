@@ -35,17 +35,6 @@ body {
 
 .grid-container {
   display: grid;
-  grid-template-columns: repeat(20, 16px);
-  grid-template-rows: repeat(40, 16px);
   width: 320px;
   height: 640px;
-}
-
-/* Debug only */
-.grid-cell {
-  width: 16px;
-  height: 16px;
-  /* background-color: #f0f0f0; */
-  /* border: 1px solid #ddd; */
-  /* box-sizing: border-box; */
 }
