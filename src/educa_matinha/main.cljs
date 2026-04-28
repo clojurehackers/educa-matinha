@@ -10,6 +10,8 @@
                            :vert-vel 0
                            :hort-vel 0}))
 
+(defonce keys-down (atom #{}))
+
 (defonce tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6} {:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
 (def floor 39)
 (def g -1)
@@ -23,7 +25,7 @@
          (fn [state]
            (-> state
                (assoc :started? (not (:started? @game-state)))
-               (assoc :player {:pos {:row floor :col 10}})))))
+               (assoc :player {:row floor :col 10})))))
 
 (defn render-tree
   [{:keys [y l]}]
@@ -38,7 +40,7 @@
 (defn render-player 
   [{:keys [player]}]
   (when player
-    (let [{:keys [row col]} (player :pos)]
+    (let [{:keys [row col]} player]
         (sab/html [:div
                    {:key   (str row "-" col)
                     :style {:margin-top (to-px (* 16 row))
@@ -81,42 +83,71 @@
     10000))
 
 (defn gravity []
-  (let [vel (@game-state :vert-vel)
-        started? (@game-state :jumping?)
-        {:keys [row col]} (-> @game-state :player :pos)
-        new-vel    (- vel g)
-        y-new      (+ row new-vel)
-        obstacle   (next-obstacle row y-new col)
-        y-new      (min y-new obstacle)]
+  (let [{vel               :vert-vel
+         started?          :jumping?
+         {:keys [row col]} :player}  @game-state
+        new-vel                      (- vel g)
+        y-new                        (+ row new-vel)
+        obstacle                     (next-obstacle row y-new col)
+        y-new                        (min y-new obstacle)]
     (when (or started? (not= row obstacle))
-      (swap! game-state merge {:jumping? false 
-                               :vert-vel new-vel 
-                               :player {:pos {:row y-new 
-                                              :col col}}}))))
+      {:jumping? false 
+       :vert-vel new-vel 
+       :player   {:row y-new 
+                  :col col}})))
 
-(defn move [e]
+(defn remove-commands [e]
+  (let [code (str (.-code e))
+        _    (.preventDefault e)]
+
+    (cond
+      (= code "Space")
+      (swap! keys-down disj code)
+
+      (= code "KeyD")
+      (swap! keys-down disj code)
+
+      (= code "KeyA")
+      (swap! keys-down disj code))))
+
+(defn add-commands [e]
+  (let [code (str (.-code e))
+        _    (.preventDefault e)]
+
+    (cond
+      (= code "Space")
+      (swap! keys-down conj code)
+
+      (= code "KeyD")
+      (swap! keys-down conj code)
+
+      (= code "KeyA")
+      (swap! keys-down conj code))))
+
+(defn move []
   (when (:started? @game-state)
-    (let [key               (.-key e)
-          _                 (.preventDefault e)
-          {:keys [row col]} (-> @game-state :player :pos)]
-      
+    (let [{:keys [row col]} (-> @game-state :player)]
+
       (cond->> {}
-        (= key " ") 
-        (merge {:jumping? true 
+        (contains? @keys-down "Space")
+        (merge {:jumping? true
                 :vert-vel ini-vel})
-        
-        (= key "d")
-        (merge {:player {:pos {:row row
-                               :col (if (< col 19) (+ col 1) col)}}})
 
-        (= key "a")
-        (merge {:player {:pos {:row row
-                               :col (if (> col 0) (- col 1) col)}}})
-        
-        :always
-        (swap! game-state merge)))))
+        (contains? @keys-down "KeyD")
+        (merge {:player {:row row
+                         :col (if (< col 19) (+ col 1) col)}})
 
-(defn main-template []
+        (contains? @keys-down "KeyA")
+        (merge {:player {:row row
+                         :col (if (> col 0) (- col 1) col)}})))))
+
+(defn change-state! [] 
+  (when (:started? @game-state)
+    (swap! game-state merge (-> @game-state
+                                (merge (move))
+                                (merge (gravity))))))
+
+(defn render-game []
   (sab/html 
      [:div.center-container
       (if (:started? @game-state)
@@ -124,20 +155,20 @@
          [:img {:src   "../../images/background.png"
                 :style {:position "absolute"}}]
          (map render-tree tree-positions)
-         (js/setTimeout (fn [] (gravity)) 25)
          (render-player @game-state)]
         
         [:div
          [:a.start-button {:onClick start-game}
           "START"]])]))
 
+
 (let [node (.getElementById js/document "app")]
-  (defn renderer []
-    (.render js/ReactDOM (main-template) node)))
+  (defn renderer [game]
+    (.render js/ReactDOM (game) node)
+    (change-state!)
+    (js/requestAnimationFrame #(renderer game))))
 
-(add-watch game-state :renderer (fn [_ _ _ _] (renderer)))
+(.addEventListener js/document "keydown" add-commands)
+(.addEventListener js/document "keyup" remove-commands)
 
-(renderer)
-
-(.addEventListener js/document "keydown" move)
-;; TODO: event listener keypress C-c d toggle debug
+(js/requestAnimationFrame (renderer render-game))
