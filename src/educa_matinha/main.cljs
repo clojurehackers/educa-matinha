@@ -92,44 +92,44 @@
       (swap! game-state merge {:jumping? false 
                                :vert-vel new-vel 
                                :player {:pos {:row y-new 
-                                              :col col}}}))) 25)
+                                              :col col}}}))))
 
 (defn move [e]
   (when (:started? @game-state)
     (let [key               (.-key e)
-          {:keys [row col]} (-> @game-state :player :pos)
-          right-pos           {:row row
-                               :col (if (< col 19) (+ col 1) col)}
-          left-pos           {:row row
-                              :col (if (> col 0) (- col 1) col)}]
-        (cond
-          (= key " ")
-          (do
-            (.preventDefault e)
-            (swap! game-state merge {:jumping? true
-                                     :vert-vel ini-vel}))
-          (= key "d")
-          (do (.preventDefault e)
-              (swap! game-state assoc-in [:player :pos] right-pos))
-          (= key "a")
-          (do (.preventDefault e)
-              (swap! game-state assoc-in [:player :pos] left-pos))))))
+          _                 (.preventDefault e)
+          {:keys [row col]} (-> @game-state :player :pos)]
+      
+      (cond->> {}
+        (= key " ") 
+        (merge {:jumping? true 
+                :vert-vel ini-vel})
+        
+        (= key "d")
+        (merge {:player {:pos {:row row
+                               :col (if (< col 19) (+ col 1) col)}}})
+
+        (= key "a")
+        (merge {:player {:pos {:row row
+                               :col (if (> col 0) (- col 1) col)}}})
+        
+        :always
+        (swap! game-state merge)))))
 
 (defn main-template []
-  (sab/html
-   (if (:started? @game-state)
-     (do
-       (js/setTimeout (fn [] (gravity)) 25)
-       [:div.center-container
+  (sab/html 
+     [:div.center-container
+      (if (:started? @game-state)
         [:div.grid-container
-          [:img {:src "../../images/background.png"
-                 :style {:position "absolute"}}]
-           (map render-tree tree-positions)
-           (render-player @game-state)]])
-     [:div
-      [:div.h1 "game not started"]
-      [:a.start-button {:onClick start-game}
-       "START"]])))
+         [:img {:src   "../../images/background.png"
+                :style {:position "absolute"}}]
+         (map render-tree tree-positions)
+         (js/setTimeout (fn [] (gravity)) 25)
+         (render-player @game-state)]
+        
+        [:div
+         [:a.start-button {:onClick start-game}
+          "START"]])]))
 
 (let [node (.getElementById js/document "app")]
   (defn renderer []
