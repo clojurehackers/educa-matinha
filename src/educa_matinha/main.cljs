@@ -4,15 +4,17 @@
    [cljsjs.react.dom]
    [sablono.core :as sab :include-macros true]))
 
+(defonce tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6} {:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
+
 (defonce game-state (atom {:started? false
                            :debug?   true
                            :jumping? false
                            :vert-vel 0
-                           :hort-vel 0}))
+                           :hort-vel 0
+                           :trees tree-positions}))
 
 (defonce keys-down (atom #{}))
 
-(defonce tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6} {:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
 (def floor 39)
 (def g -1)
 (def ini-vel -5)
@@ -54,7 +56,8 @@
   "given the y trajectory and the x position of the player, 
    returns true whether the player is on top of a tree"
   [y y-new x]
-  (let [next-tree     (->> tree-positions
+  (let [next-tree     (->> @game-state
+                           :trees
                            (filter #(<= (+ y 1) (:y %)))
                            (filter #(>= y-new (:y %)))
                            (filter #(<= x (:r %)))
@@ -141,11 +144,15 @@
         (merge {:player {:row row
                          :col (if (> col 0) (- col 1) col)}})))))
 
+(defn update-trees [trees]
+  {:trees (map (fn [tree] (if (> (:y tree) floor) (assoc tree :y -10) (assoc tree :y (+ 0.1 (:y tree))))) trees)})
+
 (defn change-state! [] 
   (when (:started? @game-state)
     (swap! game-state merge (-> @game-state
                                 (merge (move))
-                                (merge (gravity))))))
+                                (merge (gravity))
+                                #_(merge (update-trees (:trees @game-state)))))))
 
 (defn render-game []
   (sab/html 
@@ -154,7 +161,7 @@
         [:div.grid-container
          [:img {:src   "../../images/background.png"
                 :style {:position "absolute"}}]
-         (map render-tree tree-positions)
+         (map render-tree (:trees @game-state))
          (render-player @game-state)]
         
         [:div
