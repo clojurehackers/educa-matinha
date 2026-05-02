@@ -169,13 +169,17 @@
           "START"]])]))
 
 
-(let [node (.getElementById js/document "app")]
-  (defn renderer [game]
-    (.render js/ReactDOM (game) node)
-    (change-state!)
-    (js/requestAnimationFrame #(renderer game))))
+(defn renderer [last-time]
+  (fn [timestamp]
+    (let [delta-time (if (not= nil last-time) (- timestamp last-time) 0)
+          node       (.getElementById js/document "app")]
+      (println delta-time)
+      (.render js/ReactDOM (render-game) node)
+      (change-state!)
+      (js/requestAnimationFrame (renderer timestamp)))))
 
 (.addEventListener js/document "keydown" add-commands)
 (.addEventListener js/document "keyup" remove-commands)
 
-(js/requestAnimationFrame (renderer render-game))
+(def start (js/performance.now))
+(js/requestAnimationFrame (renderer start))

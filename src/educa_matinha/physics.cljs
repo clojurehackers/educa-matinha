@@ -37,10 +37,11 @@
   "receives ")
 
 (comment
-  (def time-a )
-  (def time-b )
+  (js/performance.now)
+  (def time-a (js/performance.now))
+  (def time-b (+ 60 time-a))
   (def particle {:pos [10 10] :vel [2 0] :acc [0 0] :mass 1})
   (-> particle 
       (apply-force [2 0])
-      (delta-pos 2))
+      (delta-pos (- time-b time-a)))
   )
