@@ -16,14 +16,16 @@
   "receives a particle as first argument
    and delta-time between the current and last mesurement as the second argument
    returns an updated map with new position, velocity and acceleration"
-  [{:keys [pos vel acc]}
+  [{:keys [pos vel acc] :as particle}
    delta-time]
   (let [delta-vel (mapv #(* delta-time %) acc)
         new-vel   (mapv + vel delta-vel)
-        new-pos   (mapv + pos new-vel)]
-    {:pos new-pos
-     :vel new-vel
-     :acc acc}))
+        delta-pos1   (mapv #(* delta-time %) vel)
+        delta-pos2   (mapv #(* % delta-time delta-time 0.5) acc)
+        new-pos   (mapv + pos delta-pos1 delta-pos2)]
+    (assoc particle
+           :pos new-pos
+           :vel new-vel)))
 
 (defn apply-force 
   "receives a particle as first argument and force as second argument
@@ -40,8 +42,20 @@
   (js/performance.now)
   (def time-a (js/performance.now))
   (def time-b (+ 60 time-a))
-  (def particle {:pos [10 10] :vel [2 0] :acc [0 0] :mass 1})
-  (-> particle 
-      (apply-force [2 0])
-      (delta-pos (- time-b time-a)))
+  (def particle {:pos [0 0]
+                 :vel [0 0]
+                 :acc [0 0]
+                 :mass 0.5})
+
+  (delta-pos particle 8)
+  ;; gravity force
+  (def gravity [0 -20])
+  (def jump [0 4])
+  (apply-force particle gravity)
+
+
+  (-> (apply-force particle jump)
+      (delta-pos 8))
+
+  
   )

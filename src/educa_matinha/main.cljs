@@ -173,7 +173,7 @@
   (fn [timestamp]
     (let [delta-time (if (not= nil last-time) (- timestamp last-time) 0)
           node       (.getElementById js/document "app")]
-      (println delta-time)
+      #_(println delta-time)
       (.render js/ReactDOM (render-game) node)
       (change-state!)
       (js/requestAnimationFrame (renderer timestamp)))))
