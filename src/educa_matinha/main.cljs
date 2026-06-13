@@ -2,27 +2,27 @@
   (:require
    [cljsjs.react]
    [cljsjs.react.dom]
-   [sablono.core :as sab :include-macros true]))
+   [sablono.core :as sab :include-macros true]
+   [educa-matinha.physics :as physics]))
 
 (defonce tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6} {:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
 (def floor 39)
+(def g 0.000001)
+(def jump-force (/ -5 100))
+ 
 (defonce game-state (atom {:started? false
-                           :player {:pos [10 floor] :vel [0 0]}
-                           :trees tree-positions}))
+                           :player   {:pos  [10 floor] 
+                                      :vel  [0 0]
+                                      :acc  [0 g]
+                                      :mass 1}
+                           :trees    tree-positions}))
 
 (defonce keys-down (atom #{}))
 
-(def g -1)
-(def ini-vel -5)
-
 (defn to-px [num] (str num "px"))
 
-(defn start-game
-  []
-  (swap! game-state
-         (fn [state]
-           (-> state
-               (assoc :started? (not (:started? @game-state)))))))
+(defn start-game []
+  (swap! game-state assoc :started? true))
 
 (defn render-tree
   [{:keys [y l]}]
@@ -80,19 +80,15 @@
     :else
     10000))
 
-(defn gravity 
+(defn gravity
   "returns an updated player"
-  []
-  (let [{[x y]    :pos
-         [_vx vy] :vel} (-> @game-state :player)
-        _                (println (-> @game-state :player))
-        new-vel          (- vy g)
-        y-new            (+ y new-vel)
-        obstacle         (next-obstacle y y-new x)
-        y-new            (min y-new obstacle)]
-    (when (not= y obstacle)
-      {:pos [x y-new]
-       :vel [_vx new-vel]})))
+  [player delta-time]
+  (let [new-player (physics/delta-pos player delta-time)
+        [x y]      (-> player :pos)
+        y-new      (-> new-player :pos (second))
+        obstacle   (next-obstacle y y-new x)
+        new-player (assoc-in new-player [:pos 1] (min y-new obstacle))]
+    (when (and (>= y-new 0) (not= y obstacle)) new-player)))
 
 (defn remove-commands [e]
   (let [code (str (.-code e))
@@ -125,11 +121,15 @@
 (defn move 
   "returns an updated player"
   []
-    (let [[col row] (-> @game-state :player :pos)]
+    (let [player (:player @game-state)
+          [col row] (-> @game-state :player :pos)]
 
       (cond->> {}
-        (contains? @keys-down "Space")
-        (merge {:vel [0 ini-vel]})
+        (not= g (-> player :acc second))
+        (merge (physics/apply-force player [0 (* -1 jump-force)]))
+
+        (and (= g (-> player :acc second)) (contains? @keys-down "Space"))
+        (merge (physics/apply-force player [0 jump-force]))
 
         (contains? @keys-down "KeyD")
         (merge {:pos [(if (< col 19) (+ col 1) col) row]})
@@ -140,13 +140,12 @@
 (defn update-trees [trees]
   {:trees (map (fn [tree] (if (> (:y tree) floor) (assoc tree :y -10) (assoc tree :y (+ 0.1 (:y tree))))) trees)})
 
-(defn change-state! [] 
+(defn change-state! [delta-time]
   (when (:started? @game-state)
-    (swap! game-state merge {:player (-> @game-state
-                                         :player
-                                         (merge (move))
-                                         (merge (gravity))
-                                         #_(merge (update-trees (:trees @game-state))))})))
+    (let [new-player (merge (:player @game-state) (move))]
+      (swap! game-state merge {:player (-> new-player
+                                           (merge (gravity new-player delta-time))
+                                           #_(merge (update-trees (:trees @game-state))))}))))
 
 (defn render-game []
   (sab/html 
@@ -167,9 +166,8 @@
   (fn [timestamp]
     (let [delta-time (if (not= nil last-time) (- timestamp last-time) 0)
           node       (.getElementById js/document "app")]
-      #_(println delta-time)
       (.render js/ReactDOM (render-game) node)
-      (change-state!)
+      (change-state! delta-time)
       (js/requestAnimationFrame (renderer timestamp)))))
 
 (.addEventListener js/document "keydown" add-commands)

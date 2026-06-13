@@ -18,16 +18,24 @@
    returns an updated map with new position, velocity and acceleration"
   [{:keys [pos vel acc] :as particle}
    delta-time]
-  (let [delta-vel (mapv #(* delta-time %) acc)
-        new-vel   (mapv + vel delta-vel)
-        delta-pos1   (mapv #(* delta-time %) vel)
-        delta-pos2   (mapv #(* % delta-time delta-time 0.5) acc)
-        new-pos   (mapv + pos delta-pos1 delta-pos2)]
+  (let [delta-vel  (mapv #(* delta-time %) acc)
+        new-vel    (mapv + vel delta-vel)
+        delta-pos1 (mapv #(* delta-time %) vel)
+        delta-pos2 (mapv #(* % delta-time delta-time 0.5) acc)
+        new-pos    (mapv + pos delta-pos1 delta-pos2)]
     (assoc particle
            :pos new-pos
            :vel new-vel)))
 
 (defn apply-force 
+  "receives a particle as first argument and force as second argument
+   retuns the particle after the force was applied"
+  [{:keys [acc mass] :as particle} force]
+  (let [delta-acc (mapv #(/ % mass) force)
+        new-acc   (mapv + acc delta-acc)]
+    (assoc particle :acc new-acc)))
+
+#_(defn apply-force
   "receives a particle as first argument and force as second argument
    retuns the particle after the force was applied"
   [{:keys [acc mass] :as particle} force]
@@ -55,7 +63,7 @@
 
 
   (-> (apply-force particle jump)
-      (delta-pos 8))
+      (apply-force (mapv #(* % -1) jump)))
 
   
   )
