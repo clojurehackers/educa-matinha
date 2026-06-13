@@ -7,8 +7,6 @@
 (defonce tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6} {:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
 (def floor 39)
 (defonce game-state (atom {:started? false
-                           :debug?   true
-                           :vert-vel 0
                            :player {:pos [10 floor] :vel [0 0]}
                            :trees tree-positions}))
 
@@ -83,17 +81,16 @@
     10000))
 
 (defn gravity []
-  (let [{vel           :vert-vel
-         player :player}  @game-state
-        [col row]                (:pos player)
-        _ (println player)
-        new-vel                  (- vel g)
-        y-new                    (+ row new-vel)
-        obstacle                 (next-obstacle row y-new col)
-        y-new                    (min y-new obstacle)]
-    (when (not= row obstacle)
-      {:vert-vel new-vel 
-       :player   {:pos [col y-new]}})))
+  (let [{[x y] :pos
+         [_vx vy]  :vel} (-> @game-state :player)
+        _                (println (-> @game-state :player))
+        new-vel          (- vy g)
+        y-new            (+ y new-vel)
+        obstacle         (next-obstacle y y-new x)
+        y-new            (min y-new obstacle)]
+    (when (not= y obstacle)
+      {:player {:pos [x y-new]
+                :vel [_vx new-vel]}})))
 
 (defn remove-commands [e]
   (let [code (str (.-code e))
@@ -129,7 +126,7 @@
 
       (cond->> {}
         (contains? @keys-down "Space")
-        (merge {:vert-vel ini-vel})
+        (merge {:player {:vel [0 ini-vel]}})
 
         (contains? @keys-down "KeyD")
         (merge {:player {:pos [(if (< col 19) (+ col 1) col) row]}})
