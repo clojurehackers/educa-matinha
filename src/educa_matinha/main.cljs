@@ -80,17 +80,19 @@
     :else
     10000))
 
-(defn gravity []
-  (let [{[x y] :pos
-         [_vx vy]  :vel} (-> @game-state :player)
+(defn gravity 
+  "returns an updated player"
+  []
+  (let [{[x y]    :pos
+         [_vx vy] :vel} (-> @game-state :player)
         _                (println (-> @game-state :player))
         new-vel          (- vy g)
         y-new            (+ y new-vel)
         obstacle         (next-obstacle y y-new x)
         y-new            (min y-new obstacle)]
     (when (not= y obstacle)
-      {:player {:pos [x y-new]
-                :vel [_vx new-vel]}})))
+      {:pos [x y-new]
+       :vel [_vx new-vel]})))
 
 (defn remove-commands [e]
   (let [code (str (.-code e))
@@ -120,29 +122,31 @@
       (= code "KeyA")
       (swap! keys-down conj code))))
 
-(defn move []
-  (when (:started? @game-state)
+(defn move 
+  "returns an updated player"
+  []
     (let [[col row] (-> @game-state :player :pos)]
 
       (cond->> {}
         (contains? @keys-down "Space")
-        (merge {:player {:vel [0 ini-vel]}})
+        (merge {:vel [0 ini-vel]})
 
         (contains? @keys-down "KeyD")
-        (merge {:player {:pos [(if (< col 19) (+ col 1) col) row]}})
+        (merge {:pos [(if (< col 19) (+ col 1) col) row]})
 
         (contains? @keys-down "KeyA")
-        (merge {:player {:pos [(if (> col 0) (- col 1) col) row]}})))))
+        (merge {:pos [(if (> col 0) (- col 1) col) row]}))))
 
 (defn update-trees [trees]
   {:trees (map (fn [tree] (if (> (:y tree) floor) (assoc tree :y -10) (assoc tree :y (+ 0.1 (:y tree))))) trees)})
 
 (defn change-state! [] 
   (when (:started? @game-state)
-    (swap! game-state merge (-> @game-state
-                                (merge (move))
-                                (merge (gravity))
-                                #_(merge (update-trees (:trees @game-state)))))))
+    (swap! game-state merge {:player (-> @game-state
+                                         :player
+                                         (merge (move))
+                                         (merge (gravity))
+                                         #_(merge (update-trees (:trees @game-state))))})))
 
 (defn render-game []
   (sab/html 
