@@ -5,17 +5,13 @@
    [sablono.core :as sab :include-macros true]))
 
 (defonce tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6} {:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
-
+(def floor 39)
 (defonce game-state (atom {:started? false
-                           :debug?   true
-                           :jumping? false
-                           :vert-vel 0
-                           :hort-vel 0
+                           :player {:pos [10 floor] :vel [0 0]}
                            :trees tree-positions}))
 
 (defonce keys-down (atom #{}))
 
-(def floor 39)
 (def g -1)
 (def ini-vel -5)
 
@@ -26,8 +22,7 @@
   (swap! game-state
          (fn [state]
            (-> state
-               (assoc :started? (not (:started? @game-state)))
-               (assoc :player {:row floor :col 10})))))
+               (assoc :started? (not (:started? @game-state)))))))
 
 (defn render-tree
   [{:keys [y l]}]
@@ -42,15 +37,15 @@
 (defn render-player 
   [{:keys [player]}]
   (when player
-    (let [{:keys [row col]} player]
-        (sab/html [:div
-                   {:key   (str row "-" col)
-                    :style {:margin-top (to-px (* 16 row))
-                            :margin-left (to-px (* 16 col))
-                            :width "16px"
-                            :height "16px"
-                            :position "absolute"
-                            :background-color "red"}}]))))
+    (let [[col row] (:pos player)]
+      (sab/html [:div
+                 {:key   (str row "-" col)
+                  :style {:margin-top (to-px (* 16 row))
+                          :margin-left (to-px (* 16 col))
+                          :width "16px"
+                          :height "16px"
+                          :position "absolute"
+                          :background-color "red"}}]))))
 
 (defn collides? 
   "given the y trajectory and the x position of the player, 
@@ -85,19 +80,19 @@
     :else
     10000))
 
-(defn gravity []
-  (let [{vel               :vert-vel
-         started?          :jumping?
-         {:keys [row col]} :player}  @game-state
-        new-vel                      (- vel g)
-        y-new                        (+ row new-vel)
-        obstacle                     (next-obstacle row y-new col)
-        y-new                        (min y-new obstacle)]
-    (when (or started? (not= row obstacle))
-      {:jumping? false 
-       :vert-vel new-vel 
-       :player   {:row y-new 
-                  :col col}})))
+(defn gravity 
+  "returns an updated player"
+  []
+  (let [{[x y]    :pos
+         [_vx vy] :vel} (-> @game-state :player)
+        _                (println (-> @game-state :player))
+        new-vel          (- vy g)
+        y-new            (+ y new-vel)
+        obstacle         (next-obstacle y y-new x)
+        y-new            (min y-new obstacle)]
+    (when (not= y obstacle)
+      {:pos [x y-new]
+       :vel [_vx new-vel]})))
 
 (defn remove-commands [e]
   (let [code (str (.-code e))
@@ -127,32 +122,31 @@
       (= code "KeyA")
       (swap! keys-down conj code))))
 
-(defn move []
-  (when (:started? @game-state)
-    (let [{:keys [row col]} (-> @game-state :player)]
+(defn move 
+  "returns an updated player"
+  []
+    (let [[col row] (-> @game-state :player :pos)]
 
       (cond->> {}
         (contains? @keys-down "Space")
-        (merge {:jumping? true
-                :vert-vel ini-vel})
+        (merge {:vel [0 ini-vel]})
 
         (contains? @keys-down "KeyD")
-        (merge {:player {:row row
-                         :col (if (< col 19) (+ col 1) col)}})
+        (merge {:pos [(if (< col 19) (+ col 1) col) row]})
 
         (contains? @keys-down "KeyA")
-        (merge {:player {:row row
-                         :col (if (> col 0) (- col 1) col)}})))))
+        (merge {:pos [(if (> col 0) (- col 1) col) row]}))))
 
 (defn update-trees [trees]
   {:trees (map (fn [tree] (if (> (:y tree) floor) (assoc tree :y -10) (assoc tree :y (+ 0.1 (:y tree))))) trees)})
 
 (defn change-state! [] 
   (when (:started? @game-state)
-    (swap! game-state merge (-> @game-state
-                                (merge (move))
-                                (merge (gravity))
-                                #_(merge (update-trees (:trees @game-state)))))))
+    (swap! game-state merge {:player (-> @game-state
+                                         :player
+                                         (merge (move))
+                                         (merge (gravity))
+                                         #_(merge (update-trees (:trees @game-state))))})))
 
 (defn render-game []
   (sab/html 
