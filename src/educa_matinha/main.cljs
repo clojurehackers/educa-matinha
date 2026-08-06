@@ -12,7 +12,7 @@
  
 (defonce game-state (atom {:started? false
                            :player   {:pos  [160 0] 
-                                      :vel  [0 0]
+                                      :vel  [0.2 0]
                                       :acc  [0 g]
                                       :mass 1}
                            :trees    tree-positions}))
@@ -117,10 +117,7 @@
           [col row] (-> @game-state :player :pos)]
 
       (cond->> {}
-        #_(not= g (-> player :acc second))
-        #_(merge (physics/apply-force player [0 (* -1 jump-force)]))
-
-        (and (= g (-> player :acc second)) (contains? @keys-down "Space"))
+        (and #_(= floor (-> player :pos second (Math/floor))) (contains? @keys-down "Space"))
         (merge (physics/apply-instant-force player [0 jump-force] delta-time))
 
         (contains? @keys-down "KeyD")
@@ -137,14 +134,37 @@
   [player]
   (- (-> player :pos second) floor))
 
+(defn left-wall-penetration
+  "receives the player and returns the penetration depth between the player and the left wall"
+  [player]
+  (- 0 (-> player :pos first)))
+
+(defn right-wall-penetration
+  "receives the player and returns the penetration depth between the player and the right wall"
+  [player]
+  (- (-> player :pos first) (* 16 19)))
+
+#_(defn tree-penetration
+  "player and a tree")
+
+(defn collision-resolver
+  "receives the player and resolves its current collisions"
+  [player]
+  (let [fp          (floor-penetration player)
+        new-player  (if (<= fp 0.1) player (merge player (physics/resolve-collision player [0 -1] 0.5 fp)))
+        lwp         (left-wall-penetration new-player)
+        new-player  (if (<= lwp 0.1) new-player (merge new-player (physics/resolve-collision new-player [1 0] 1 lwp)))
+        rwp         (right-wall-penetration new-player)
+        new-player  (if (<= rwp 0.1) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))]
+   new-player))
+
 (defn change-state! [delta-time]
   (when (:started? @game-state)
-    (let [new-force-player (merge (:player @game-state) (move delta-time))
-          apply-force-player (gravity new-force-player delta-time)
-          fp (floor-penetration apply-force-player)
-          _ (println apply-force-player)
-          check-col-player (if (<= fp 0.1) apply-force-player (merge apply-force-player (physics/resolve-collision apply-force-player [0 -1] 0.5 fp)))]
-      (swap! game-state merge {:player check-col-player}))))
+    (let [new-player (-> (:player @game-state)
+                         (merge (move delta-time))
+                         (gravity delta-time)
+                         (collision-resolver))]
+      (swap! game-state merge {:player new-player}))))
 
 (defn render-game []
   (sab/html 

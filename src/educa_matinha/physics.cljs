@@ -5,7 +5,7 @@
     :acc vector of the particle's acceleration
     :mass real inverse of the mass")
 
-(def penetration-slop 0.5)
+(def penetration-slop 0.01)
 
 (defn ax
   "receives a scalar a and a vector x, returns the multiplication ax"
