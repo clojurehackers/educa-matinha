@@ -11,7 +11,7 @@
 (def jump-force (/ -5 100))
  
 (defonce game-state (atom {:started? false
-                           :player   {:pos  [10 floor] 
+                           :player   {:pos  [10 0] 
                                       :vel  [0 0]
                                       :acc  [0 g]
                                       :mass 1}
@@ -74,9 +74,6 @@
     (collides? y y-new col)
     (collides? y y-new col)
 
-    (>= y-new floor)
-    floor
-
     :else
     10000))
 
@@ -120,7 +117,7 @@
 
 (defn move 
   "returns an updated player"
-  []
+  [delta-time]
     (let [player (:player @game-state)
           [col row] (-> @game-state :player :pos)]
 
@@ -140,11 +137,19 @@
 (defn update-trees [trees]
   {:trees (map (fn [tree] (if (> (:y tree) floor) (assoc tree :y -10) (assoc tree :y (+ 0.1 (:y tree))))) trees)})
 
+(defn floor-penetration
+  "receives the player and returns the penetration depth between the player and the floor"
+  [player]
+  (- (-> player :pos second) floor))
+
 (defn change-state! [delta-time]
   (when (:started? @game-state)
-    (let [new-force-player (merge (:player @game-state) (move))
+    (let [new-force-player (merge (:player @game-state) (move delta-time))
           apply-force-player (merge new-force-player (gravity new-force-player delta-time))
-          check-col-player (merge apply-force-player (physics/resolve-collision apply-force-player [0 -1] 1 1))]
+          fp (floor-penetration apply-force-player)
+          _ (println "position: " (-> apply-force-player :pos))
+          _ (println "penetration: " fp)
+          check-col-player (if (<= fp 0) apply-force-player (merge apply-force-player (physics/resolve-collision apply-force-player [0 -1] 1 fp)))]
       (swap! game-state merge {:player check-col-player}))))
 
 (defn render-game []

@@ -53,6 +53,17 @@
         new-acc   (mapv + acc delta-acc)]
     (assoc particle :acc new-acc)))
 
+(defn apply-instant-force
+  "receives a particle as first argument and force as second argument
+   retuns the particle after the force was applied for an instant"
+  [{:keys [acc mass] :as particle} force delta-time]
+  (let [delta-acc (mapv #(/ % mass) force)
+        new-acc   (mapv + acc delta-acc)]
+    (-> particle
+        (assoc :acc new-acc)
+        (delta-pos delta-time)
+        (assoc :acc acc))))
+
 (defn separating-velocity
   "receives one or two particles and the contact normal,
    returns the scalar separating velocity"
@@ -62,12 +73,12 @@
   ([p0 p1 normal]
    (let [{vel0 :vel}  p0
          {vel1 :vel}  p1
-         relative-vel (if (not= nil p1) (sub vel0 vel1) (vel0))]
+         relative-vel (sub vel0 vel1)]
      (dot relative-vel normal))))
 
 (defn resolve-velocity
   "receives one or two particles, the contact normal and restitution constant,
-   returns the new velocities of the particles"
+   returns the particle(s) with updated velocities"
   ([p0 normal restitution]
    (let [sep-vel (separating-velocity p0 normal)]
      (if (<= sep-vel 0)
@@ -121,7 +132,8 @@
    (-> p0 
        (resolve-velocity normal restitution)
        first
-       (resolve-interpenetration normal penetration)))
+       (resolve-interpenetration normal penetration)
+       first))
   
   ([p0 p1 normal restitution penetration]
    (-> p0
