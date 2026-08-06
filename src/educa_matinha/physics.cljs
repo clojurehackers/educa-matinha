@@ -5,6 +5,8 @@
     :acc vector of the particle's acceleration
     :mass real inverse of the mass")
 
+(def penetration-slop 0.5)
+
 (defn ax
   "receives a scalar a and a vector x, returns the multiplication ax"
   [a x]
@@ -111,9 +113,9 @@
   "receives one or two particles, the contact normal and penetration
    returns new positions of the particles"
   ([p0 normal penetration]
-   (if (> penetration 0)
+   (if (> penetration penetration-slop)
      (let [total-inv-mass (:mass p0)
-           mov-per-mass   (->> normal (ax -1) (ax (/ penetration total-inv-mass)))
+           mov-per-mass   (ax (/ penetration total-inv-mass) normal)
            new-pos0       (sum (:pos p0) (ax (:mass p0) mov-per-mass))]
        [(assoc p0 :pos new-pos0)]) 
      [p0]))

@@ -6,12 +6,12 @@
    [educa-matinha.physics :as physics]))
 
 (defonce tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6} {:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
-(def floor 39)
-(def g 0.000001)
-(def jump-force (/ -5 100))
+(def floor (* 39 16))
+(def g 0.001)
+(def jump-force -0.005)
  
 (defonce game-state (atom {:started? false
-                           :player   {:pos  [10 0] 
+                           :player   {:pos  [160 0] 
                                       :vel  [0 0]
                                       :acc  [0 g]
                                       :mass 1}
@@ -40,8 +40,8 @@
     (let [[col row] (:pos player)]
       (sab/html [:div
                  {:key   (str row "-" col)
-                  :style {:margin-top (to-px (* 16 row))
-                          :margin-left (to-px (* 16 col))
+                  :style {:margin-top (to-px row)
+                          :margin-left (to-px col)
                           :width "16px"
                           :height "16px"
                           :position "absolute"
@@ -80,12 +80,7 @@
 (defn gravity
   "returns an updated player"
   [player delta-time]
-  (let [new-player (physics/delta-pos player delta-time)
-        [x y]      (-> player :pos)
-        y-new      (-> new-player :pos (second))
-        obstacle   (next-obstacle y y-new x)
-        new-player (assoc-in new-player [:pos 1] (min y-new obstacle))]
-    (when (and (>= y-new 0) (not= y obstacle)) new-player)))
+  (physics/delta-pos player delta-time))
 
 (defn remove-commands [e]
   (let [code (str (.-code e))
@@ -122,14 +117,14 @@
           [col row] (-> @game-state :player :pos)]
 
       (cond->> {}
-        (not= g (-> player :acc second))
-        (merge (physics/apply-force player [0 (* -1 jump-force)]))
+        #_(not= g (-> player :acc second))
+        #_(merge (physics/apply-force player [0 (* -1 jump-force)]))
 
         (and (= g (-> player :acc second)) (contains? @keys-down "Space"))
-        (merge (physics/apply-force player [0 jump-force]))
+        (merge (physics/apply-instant-force player [0 jump-force] delta-time))
 
         (contains? @keys-down "KeyD")
-        (merge {:pos [(if (< col 19) (+ col 1) col) row]})
+        (merge {:pos [(if (< col (* 16 19)) (+ col 1) col) row]})
 
         (contains? @keys-down "KeyA")
         (merge {:pos [(if (> col 0) (- col 1) col) row]}))))
@@ -145,11 +140,10 @@
 (defn change-state! [delta-time]
   (when (:started? @game-state)
     (let [new-force-player (merge (:player @game-state) (move delta-time))
-          apply-force-player (merge new-force-player (gravity new-force-player delta-time))
+          apply-force-player (gravity new-force-player delta-time)
           fp (floor-penetration apply-force-player)
-          _ (println "position: " (-> apply-force-player :pos))
-          _ (println "penetration: " fp)
-          check-col-player (if (<= fp 0) apply-force-player (merge apply-force-player (physics/resolve-collision apply-force-player [0 -1] 1 fp)))]
+          _ (println apply-force-player)
+          check-col-player (if (<= fp 0.1) apply-force-player (merge apply-force-player (physics/resolve-collision apply-force-player [0 -1] 0.5 fp)))]
       (swap! game-state merge {:player check-col-player}))))
 
 (defn render-game []
