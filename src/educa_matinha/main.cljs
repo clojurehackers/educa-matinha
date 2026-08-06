@@ -142,10 +142,10 @@
 
 (defn change-state! [delta-time]
   (when (:started? @game-state)
-    (let [new-player (merge (:player @game-state) (move))]
-      (swap! game-state merge {:player (-> new-player
-                                           (merge (gravity new-player delta-time))
-                                           #_(merge (update-trees (:trees @game-state))))}))))
+    (let [new-force-player (merge (:player @game-state) (move))
+          apply-force-player (merge new-force-player (gravity new-force-player delta-time))
+          check-col-player (merge apply-force-player (physics/resolve-collision apply-force-player [0 -1] 1 1))]
+      (swap! game-state merge {:player check-col-player}))))
 
 (defn render-game []
   (sab/html 

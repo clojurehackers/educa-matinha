@@ -8,12 +8,12 @@
 (defn ax
   "receives a scalar a and a vector x, returns the multiplication ax"
   [a x]
-  (map #(* a %) x))
+  (vec (map #(* a %) x)))
 
 (defn sum
   "receives two vectors and returns their sum"
   [a b]
-  (map + a b))
+  (vec (map + a b)))
 
 (defn sub
   "receives two vectors and subtracts them"
@@ -24,6 +24,11 @@
   "receives two vectors and retuns their dot product"
   [a b]
   (apply + (map * a b)))
+
+(defn mult
+  "receives two vectors and returns their multiplication"
+  [a b]
+  (vec (map * a b)))
 
 (defn delta-pos
   "receives a particle as first argument
@@ -49,61 +54,109 @@
     (assoc particle :acc new-acc)))
 
 (defn separating-velocity
-  "receives two particles and the contact normal,
+  "receives one or two particles and the contact normal,
    returns the scalar separating velocity"
-  [p0 p1 normal]
-  (let [{vel0 :vel}  p0
-        {vel1 :vel}  p1
-        relative-vel (if (p1) (sub vel0 vel1) (vel0))]
-    (dot relative-vel normal)))
+  ([p0 normal]
+     (dot (:vel p0) normal))
+  
+  ([p0 p1 normal]
+   (let [{vel0 :vel}  p0
+         {vel1 :vel}  p1
+         relative-vel (if (not= nil p1) (sub vel0 vel1) (vel0))]
+     (dot relative-vel normal))))
 
 (defn resolve-velocity
-  "receives two particles, the contact normal and restitution constant,
+  "receives one or two particles, the contact normal and restitution constant,
    returns the new velocities of the particles"
-  [p0 p1 normal restitution]
-  (let [sep-vel (separating-velocity p0 p1 normal)]
-    (when (sep-vel <= 0)
-      (let [new-sep-vel      (->> sep-vel (* -1) (* restitution))
-            delta-vel        (- new-sep-vel sep-vel)
-            total-inv-mass   (if p1 (+ (:mass p0) (:mass p1)) (:mass p0))
-            impulse          (/ delta-vel total-inv-mass)
-            impulse-per-mass (ax impulse normal)
-            new-vel0         (ax (:mass p0) impulse-per-mass)
-            new-vel1         (ax (:mass p1) impulse-per-mass)]
-        [new-vel0 new-vel1]))))
+  ([p0 normal restitution]
+   (let [sep-vel (separating-velocity p0 normal)]
+     (if (<= sep-vel 0)
+       (let [{vel0 :vel}      p0
+             new-sep-vel      (* sep-vel -1 restitution)
+             delta-vel        (- new-sep-vel sep-vel)
+             total-inv-mass   (:mass p0)
+             impulse          (/ delta-vel total-inv-mass)
+             impulse-per-mass (ax impulse normal)
+             new-vel0         (ax (:mass p0) impulse-per-mass)]
+         [(assoc p0 :vel (sum vel0 new-vel0))])
+       [p0])))
+  
+  ([p0 p1 normal restitution]
+     (let [sep-vel (separating-velocity p0 p1 normal)]
+       (when (<= sep-vel 0)
+         (let [{vel0 :vel}  p0
+               {vel1 :vel}  p1
+               new-sep-vel      (* sep-vel -1 restitution)
+               delta-vel        (- new-sep-vel sep-vel)
+               total-inv-mass   (+ (:mass p0) (:mass p1))
+               impulse          (/ delta-vel total-inv-mass)
+               impulse-per-mass (ax impulse normal)
+               new-vel0         (ax (:mass p0) impulse-per-mass)
+               new-vel1         (ax (:mass p1) impulse-per-mass)]
+           [(assoc p0 :vel (sum vel0 new-vel0))
+            (assoc p1 :vel (sum vel1 new-vel1))])))))
 
 (defn resolve-interpenetration
-  "receives two particles, the contact normal and penetration
+  "receives one or two particles, the contact normal and penetration
    returns new positions of the particles"
-  [p0 p1 normal penetration]
-  (when (> penetration 0)
-    (let [total-inv-mass (if p1 (+ (:mass p0) (:mass p1)) (:mass p0))
-          mov-per-mass   (->> normal (ax -1) (ax (/ penetration total-inv-mass)))
-          new-pos0       (sum (:pos p0) (ax (:mass p0) mov-per-mass))
-          new-pos1       (sum (:pos p1) (ax (:mass p1) mov-per-mass))]
-      [new-pos0 new-pos1])))
+  ([p0 normal penetration]
+   (if (> penetration 0)
+     (let [total-inv-mass (:mass p0)
+           mov-per-mass   (->> normal (ax -1) (ax (/ penetration total-inv-mass)))
+           new-pos0       (sum (:pos p0) (ax (:mass p0) mov-per-mass))]
+       [(assoc p0 :pos new-pos0)]) 
+     [p0]))
 
-#_(defn resolve-collision
-  "receives two particles"
-  [p0 p1]
-  (resolve-velocity p0 p1)
-  (resolve-interpenetration p0 p1))
+  ([p0 p1 normal penetration]
+   (when (> penetration 0)
+     (let [total-inv-mass (+ (:mass p0) (:mass p1))
+           mov-per-mass   (->> normal (ax -1) (ax (/ penetration total-inv-mass)))
+           new-pos0       (sum (:pos p0) (ax (:mass p0) mov-per-mass))
+           new-pos1       (sum (:pos p1) (ax (:mass p1) mov-per-mass))]
+       [(assoc p0 :pos new-pos0) (assoc p1 :pos new-pos1)]))))
+
+(defn resolve-collision
+  "receives one or two particles and resolves their collision"
+  ([p0 normal restitution penetration]
+   (-> p0 
+       (resolve-velocity normal restitution)
+       first
+       (resolve-interpenetration normal penetration)))
+  
+  ([p0 p1 normal restitution penetration]
+   (-> p0
+       (resolve-velocity p1 normal restitution)
+       (resolve-interpenetration p1 normal penetration))))
 
 (comment
   (js/performance.now)
   (def time-a (js/performance.now))
   (def time-b (+ 60 time-a))
-  (def particle {:pos [0 0]
-                 :vel [0 0]
+  (def particle {:pos [0 -1]
+                 :vel [0 5]
                  :acc [0 0]
-                 :mass 0.5})
-
+                 :mass 1})
+  
+  (dot [1 0] [0 1])
+  (dot (:vel particle) [1 0])
+  
+  (separating-velocity particle [0 1])
+  (* -1 (separating-velocity particle [0 1]))
+  (-> particle (resolve-velocity [0 -1] 1)
+      first
+      (resolve-interpenetration [0 -1] 1))
+  (resolve-velocity particle [0 -1] 1)
+  (resolve-interpenetration particle [0 -1] 1)
+  (resolve-collision particle [0 -1] 1 1)
+  
   (delta-pos particle 8)
   ;; gravity force
   (def gravity [0 -20])
   (def jump [0 4])
   (apply-force particle gravity)
+  (if (not= nil particle) [1 1] [0 0])
 
 
   (-> (apply-force particle jump)
-      (apply-force (mapv #(* % -1) jump))))
+      (apply-force (mapv #(* % -1) jump)))
+  )
