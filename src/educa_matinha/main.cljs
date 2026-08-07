@@ -21,7 +21,7 @@
 
 (defn to-px [num] (str num "px"))
 
-(defn start-game []
+(defn start-game! []
   (swap! game-state assoc :started? true))
 
 (defn render-tree
@@ -47,7 +47,7 @@
                           :position "absolute"
                           :background-color "red"}}]))))
 
-(defn collides? 
+#_(defn collides? 
   "given the y trajectory and the x position of the player, 
    returns true whether the player is on top of a tree"
   [y y-new x]
@@ -65,17 +65,6 @@
       (- next-tree-pos 1)
       :else
       false)))
-
-(defn next-obstacle [y y-new col]
-  (cond 
-    (> y y-new) ; not droping 
-    10000
-
-    (collides? y y-new col)
-    (collides? y y-new col)
-
-    :else
-    10000))
 
 (defn gravity
   "returns an updated player"
@@ -121,10 +110,10 @@
         (merge (physics/apply-instant-force player [0 jump-force] delta-time))
 
         (contains? @keys-down "KeyD")
-        (merge {:pos [(if (< col (* 16 19)) (+ col 1) col) row]})
+        (merge {:pos [(+ col 5) row]})
 
         (contains? @keys-down "KeyA")
-        (merge {:pos [(if (> col 0) (- col 1) col) row]}))))
+        (merge {:pos [(- col 5) row]}))))
 
 (defn update-trees [trees]
   {:trees (map (fn [tree] (if (> (:y tree) floor) (assoc tree :y -10) (assoc tree :y (+ 0.1 (:y tree))))) trees)})
@@ -144,19 +133,30 @@
   [player]
   (- (-> player :pos first) (* 16 19)))
 
-#_(defn tree-penetration
-  "player and a tree")
+(defn tree-penetration
+  "given a player, 
+   returns the penetration deph of the closest tree"
+  [{:keys [player trees]}]
+  (let [{[x y] :pos} player]
+    (->> @game-state
+         :trees
+         (filter #(<= x (:r %)))
+         (filter #(>= x (:l %)))
+         (map #(- y (:y %)))
+         (filter #(>= % 0))
+         #(apply min %)
+         )))
 
 (defn collision-resolver
   "receives the player and resolves its current collisions"
   [player]
   (let [fp          (floor-penetration player)
-        new-player  (if (<= fp 0.1) player (merge player (physics/resolve-collision player [0 -1] 0.5 fp)))
+        new-player  (if (< fp 0) player (merge player (physics/resolve-collision player [0 -1] 0.5 fp)))
         lwp         (left-wall-penetration new-player)
-        new-player  (if (<= lwp 0.1) new-player (merge new-player (physics/resolve-collision new-player [1 0] 1 lwp)))
+        new-player  (if (< lwp 0) new-player (merge new-player (physics/resolve-collision new-player [1 0] 1 lwp)))
         rwp         (right-wall-penetration new-player)
-        new-player  (if (<= rwp 0.1) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))]
-   new-player))
+        new-player  (if (< rwp 0) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))]
+    new-player))
 
 (defn change-state! [delta-time]
   (when (:started? @game-state)
@@ -177,7 +177,7 @@
          (render-player @game-state)]
         
         [:div
-         [:a.start-button {:onClick start-game}
+         [:a.start-button {:onClick start-game!}
           "START"]])]))
 
 
@@ -194,3 +194,12 @@
 
 (def start (js/performance.now))
 (js/requestAnimationFrame (renderer start))
+
+(comment 
+  (def particle {:pos [0 -1]
+                 :vel [0 5]
+                 :acc [0 0]
+                 :mass 1})
+  
+  (tree-penetration particle)
+  )
