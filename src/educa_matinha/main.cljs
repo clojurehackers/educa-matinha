@@ -5,36 +5,36 @@
    [sablono.core :as sab :include-macros true]
    [educa-matinha.physics :as physics]))
 
-(defonce trees #{{:pos [66 40]
-                  :len [66 40]}
+(defonce trees #{{:pos [66 32]
+                  :len [66 0]}
+                 
+                 {:pos [66 160]
+                  :len [66 0]}
 
-                 {:pos [66 200]
-                  :len [66 40]}
+                 {:pos [66 320]
+                  :len [66 0]}
 
-                 {:pos [66 360]
-                  :len [66 40]}
+                 {:pos [66 460]
+                  :len [66 0]}
 
-                 {:pos [66 500]
-                  :len [66 40]}
+                 {:pos [274 16]
+                  :len [66 0]}
 
-                 {:pos [274 56]
-                  :len [66 40]}
+                 {:pos [274 160]
+                  :len [66 0]}
 
-                 {:pos [274 200]
-                  :len [66 40]}
+                 {:pos [274 320]
+                  :len [66 0]}
 
-                 {:pos [274 360]
-                  :len [66 40]}
-
-                 {:pos [274 520]
-                  :len [66 40]}})
+                 {:pos [274 480]
+                  :len [66 0]}})
 
 (def floor 624)
 (def g 0.001)
 (def jump-force -0.005)
 
 (defonce game-state (atom {:started? false
-                           :player   {:pos  [160 0]
+                           :player   {:pos  [160 floor]
                                       :len  [8 8]
                                       :vel  [0.2 0]
                                       :acc  [0 g]
@@ -52,29 +52,30 @@
   [tree]
   (let [{[x y]   :pos
          [dx dy] :len} tree
-        l (- x dx)
-        y (- y dy)
-        dir (if (= 0 l) "left" "right")]
+        l              (- x dx)
+        y              (- y dy)
+        dir            (if (= 0 l) "left" "right")]
     (sab/html [:div
                {:key   (str y "-" l)
-                :style {:margin-top (to-px y)
+                :style {:margin-top  (to-px y)
                         :margin-left (to-px l)
-                        :position "absolute"
-                        :border "1px solid red"}}
+                        :position    "absolute"}}
                [:img {:src (str "../../images/" dir "-tree.png")}]])))
 
 (defn render-player
   [{:keys [player]}]
   (when player
     (let [{[col row] :pos
-           [dx dy]   :len} player]
+           [dx dy]   :len} player
+          col              (- col dx)
+          row              (- row dy)]
       (sab/html [:div
                  {:key   (str row "-" col)
-                  :style {:margin-top (to-px row)
-                          :margin-left (to-px col)
-                          :width "16px"
-                          :height "16px"
-                          :position "absolute"
+                  :style {:margin-top       (to-px row)
+                          :margin-left      (to-px col)
+                          :width            "16px"
+                          :height           "16px"
+                          :position         "absolute"
                           :background-color "red"}}]))))
 
 (defn gravity
@@ -131,18 +132,18 @@
 
 (defn floor-penetration
   "receives the player and returns the penetration depth between the player and the floor"
-  [player]
-  (- (-> player :pos second) floor))
+  [{:keys [pos len]}]
+  (- (second pos) (second len) floor))
 
 (defn left-wall-penetration
   "receives the player and returns the penetration depth between the player and the left wall"
-  [player]
-  (- 0 (-> player :pos first)))
+  [{:keys [pos len]}]
+  (+ (first len) (- 0 (first pos))))
 
 (defn right-wall-penetration
   "receives the player and returns the penetration depth between the player and the right wall"
-  [player]
-  (- (-> player :pos first) (* 16 19)))
+  [{:keys [pos len]}]
+  (- (first pos) (first len) (* 16 19)))
 
 (defn tree-penetration
   "given a player, 
@@ -150,7 +151,6 @@
   [player]
   (->> @game-state
        :trees
-       (map #(assoc % :len [66 1]))
        (map #(physics/rect-rect-collision % player))
        (apply max)))
 
@@ -165,7 +165,7 @@
         new-player (if (< rwp 0) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))
         tp         (tree-penetration new-player)
         _ (println tp)
-        new-player (if (< tp 0.9) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0.5 tp)))]
+        new-player (if (< tp 0.9) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0 tp)))]
     new-player))
 
 (defn change-state! [delta-time]
@@ -179,16 +179,17 @@
 (defn render-game []
   (sab/html
    [:div.center-container
+    [:div.grid-container
+     [:img {:src   "../../images/background.png"
+            :style {:position "absolute"
+                    :opacity  "60%"}}]
     (if (:started? @game-state)
-      [:div.grid-container
-       [:img {:src   "../../images/background.png"
-              :style {:position "absolute"}}]
-       (map render-tree (:trees @game-state))
+      [(map render-tree (:trees @game-state))
        (render-player @game-state)]
-
+      
       [:div
        [:a.start-button {:onClick start-game!}
-        "START"]])]))
+        "START"]])]]))
 
 
 (defn renderer [last-time]
