@@ -164,7 +164,6 @@
         rwp        (right-wall-penetration new-player)
         new-player (if (< rwp 0) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))
         tp         (tree-penetration new-player)
-        _ (println tp)
         new-player (if (< tp 0.9) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0 tp)))]
     new-player))
 
