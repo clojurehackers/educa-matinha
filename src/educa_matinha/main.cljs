@@ -34,9 +34,10 @@
 (def jump-force -0.005)
 
 (defonce game-state (atom {:started? false
+                           :paused?  false
                            :player   {:pos  [160 floor]
                                       :len  [8 8]
-                                      :vel  [0.2 0]
+                                      :vel  [0.1 0]
                                       :acc  [0 g]
                                       :mass 1}
                            :trees    trees}))
@@ -47,6 +48,14 @@
 
 (defn start-game! []
   (swap! game-state assoc :started? true))
+
+(defn pause-game! []
+  (when (:started? @game-state)
+    (swap! game-state assoc :paused? true)))
+
+(defn resume-game! []
+  (when (:started? @game-state)
+    (swap! game-state assoc :paused? false)))
 
 (defn render-tree
   [tree]
@@ -76,7 +85,7 @@
                           :width            "16px"
                           :height           "16px"
                           :position         "absolute"
-                          :background-color "red"}}]))))
+                          :background-color "orange"}}]))))
 
 (defn gravity
   "returns an updated player"
@@ -95,6 +104,9 @@
       (swap! keys-down disj code)
 
       (= code "KeyA")
+      (swap! keys-down disj code)
+      
+      (= code "Escape")
       (swap! keys-down disj code))))
 
 (defn add-commands [e]
@@ -109,6 +121,9 @@
       (swap! keys-down conj code)
 
       (= code "KeyA")
+      (swap! keys-down conj code)
+      
+      (= code "Escape")
       (swap! keys-down conj code))))
 
 (defn move
@@ -164,11 +179,11 @@
         rwp        (right-wall-penetration new-player)
         new-player (if (< rwp 0) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))
         tp         (tree-penetration new-player)
-        new-player (if (< tp 0.9) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0 tp)))]
+        new-player (if (< tp 0.1) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0 tp)))]
     new-player))
 
 (defn change-state! [delta-time]
-  (when (:started? @game-state)
+  (when (and (:started? @game-state) (not (:paused? @game-state)))
     (let [new-player (-> (:player @game-state)
                          (merge (move delta-time))
                          (gravity delta-time)
@@ -182,19 +197,25 @@
      [:img {:src   "../../images/background.png"
             :style {:position "absolute"
                     :opacity  "60%"}}]
-    (if (:started? @game-state)
-      [(map render-tree (:trees @game-state))
-       (render-player @game-state)]
-      
-      [:div
-       [:a.start-button {:onClick start-game!}
-        "START"]])]]))
+     (if (:started? @game-state)
+       (if (:paused? @game-state)
+         [:div
+          [:a.resume-button {:onClick resume-game!}
+           "RESUME"]]
+         
+         [(map render-tree (:trees @game-state))
+          (render-player @game-state)])
+       
+       [:div
+        [:a.start-button {:onClick start-game!}
+         "START"]])]]))
 
 
 (defn renderer [last-time]
   (fn [timestamp]
     (let [delta-time (if (not= nil last-time) (- timestamp last-time) 0)
           node       (.getElementById js/document "app")]
+      (when (contains? @keys-down "Escape") (pause-game!))
       (.render js/ReactDOM (render-game) node)
       (change-state! delta-time)
       (js/requestAnimationFrame (renderer timestamp)))))
