@@ -142,6 +142,38 @@
        (resolve-velocity p1 normal restitution)
        (resolve-interpenetration p1 normal penetration))))
 
+(defn interval-intersect
+  "receives two intervals and returns whether they intersect"
+  [a b c d]
+  (if (< a c)
+    (if (< b c) 0 (- b c))
+    (if (< d a) 0 (- d a))))
+
+(defn rect-rect-collision
+  "receives two rectangles:
+   {:p1 [x y] (top-left corner)
+    :p2 [x y] (bottom-right corner)}
+   and returns the penetration depth and the normal"
+  [rect1 rect2]
+  (let [{[a b]   :pos
+         [da db] :len} rect1
+        {[d c]   :pos
+         [dd dc] :len} rect2
+        x1             (- a da)
+        y1             (- b db)
+        x2             (+ a da)
+        y2             (+ b db)
+        x3             (- d dd)
+        y3             (- c dc)
+        x4             (+ d dd)
+        y4             (+ c dc)
+       ; _ (println y1 y2 y3 y4)
+       ; _ (println x1 x2 x3 x4)
+        ]
+    (if (> (interval-intersect x1 x2 x3 x4) 0)
+      (interval-intersect y1 y2 y3 y4)
+      0)))
+
 (comment
   (js/performance.now)
   (def time-a (js/performance.now))
@@ -173,4 +205,14 @@
 
   (-> (apply-force particle jump)
       (apply-force (mapv #(* % -1) jump)))
+  
+  (def tree {:pos [66 40]
+             :len [66 40]} )
+
+  
+  (def player {:pos [200 0]
+               :len [8 8]})
+  (rect-rect-collision tree player)
+
+  (apply max [0 1 nil])
   )

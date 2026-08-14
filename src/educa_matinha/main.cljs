@@ -5,17 +5,41 @@
    [sablono.core :as sab :include-macros true]
    [educa-matinha.physics :as physics]))
 
-(defonce tree-positions #{{:y 1 :l 0 :r 6} {:y 10 :l 0 :r 6} {:y 20 :l 0 :r 6} {:y 35 :l 0 :r 6} {:y 1 :l 13 :r 19} {:y 10 :l 13 :r 19} {:y 20 :l 13 :r 19} {:y 30 :l 13 :r 19}})
-(def floor (* 39 16))
+(defonce trees #{{:pos [66 40]
+                  :len [66 40]}
+
+                 {:pos [66 200]
+                  :len [66 40]}
+
+                 {:pos [66 360]
+                  :len [66 40]}
+
+                 {:pos [66 500]
+                  :len [66 40]}
+
+                 {:pos [274 56]
+                  :len [66 40]}
+
+                 {:pos [274 200]
+                  :len [66 40]}
+
+                 {:pos [274 360]
+                  :len [66 40]}
+
+                 {:pos [274 520]
+                  :len [66 40]}})
+
+(def floor 624)
 (def g 0.001)
 (def jump-force -0.005)
- 
+
 (defonce game-state (atom {:started? false
-                           :player   {:pos  [160 0] 
+                           :player   {:pos  [160 0]
+                                      :len  [8 8]
                                       :vel  [0.2 0]
                                       :acc  [0 g]
                                       :mass 1}
-                           :trees    tree-positions}))
+                           :trees    trees}))
 
 (defonce keys-down (atom #{}))
 
@@ -25,19 +49,25 @@
   (swap! game-state assoc :started? true))
 
 (defn render-tree
-  [{:keys [y l]}]
-  (let [dir (if (= 0 l) "left" "right")]
-      (sab/html [:div
-                 {:key   (str y "-" l)
-                  :style {:margin-top (to-px (* 16 y))
-                          :margin-left (to-px (* 16 l))
-                          :position "absolute"}}
-                 [:img {:src (str "../../images/" dir "-tree.png")}]])))
+  [tree]
+  (let [{[x y]   :pos
+         [dx dy] :len} tree
+        l (- x dx)
+        y (- y dy)
+        dir (if (= 0 l) "left" "right")]
+    (sab/html [:div
+               {:key   (str y "-" l)
+                :style {:margin-top (to-px y)
+                        :margin-left (to-px l)
+                        :position "absolute"
+                        :border "1px solid red"}}
+               [:img {:src (str "../../images/" dir "-tree.png")}]])))
 
-(defn render-player 
+(defn render-player
   [{:keys [player]}]
   (when player
-    (let [[col row] (:pos player)]
+    (let [{[col row] :pos
+           [dx dy]   :len} player]
       (sab/html [:div
                  {:key   (str row "-" col)
                   :style {:margin-top (to-px row)
@@ -46,25 +76,6 @@
                           :height "16px"
                           :position "absolute"
                           :background-color "red"}}]))))
-
-#_(defn collides? 
-  "given the y trajectory and the x position of the player, 
-   returns true whether the player is on top of a tree"
-  [y y-new x]
-  (let [next-tree     (->> @game-state
-                           :trees
-                           (filter #(<= (+ y 1) (:y %)))
-                           (filter #(>= y-new (:y %)))
-                           (filter #(<= x (:r %)))
-                           (filter #(>= x (:l %)))
-                           first)
-        next-tree-pos (:y next-tree)
-        colides?      (pos? next-tree-pos)]
-    (cond
-      colides?
-      (- next-tree-pos 1)
-      :else
-      false)))
 
 (defn gravity
   "returns an updated player"
@@ -99,21 +110,21 @@
       (= code "KeyA")
       (swap! keys-down conj code))))
 
-(defn move 
+(defn move
   "returns an updated player"
   [delta-time]
-    (let [player (:player @game-state)
-          [col row] (-> @game-state :player :pos)]
+  (let [player (:player @game-state)
+        [col row] (-> @game-state :player :pos)]
 
-      (cond->> {}
-        (and #_(= floor (-> player :pos second (Math/floor))) (contains? @keys-down "Space"))
-        (merge (physics/apply-instant-force player [0 jump-force] delta-time))
+    (cond->> {}
+      (and #_(= floor (-> player :pos second (Math/floor))) (contains? @keys-down "Space"))
+      (merge (physics/apply-instant-force player [0 jump-force] delta-time))
 
-        (contains? @keys-down "KeyD")
-        (merge {:pos [(+ col 5) row]})
+      (contains? @keys-down "KeyD")
+      (merge {:pos [(+ col 5) row]})
 
-        (contains? @keys-down "KeyA")
-        (merge {:pos [(- col 5) row]}))))
+      (contains? @keys-down "KeyA")
+      (merge {:pos [(- col 5) row]}))))
 
 (defn update-trees [trees]
   {:trees (map (fn [tree] (if (> (:y tree) floor) (assoc tree :y -10) (assoc tree :y (+ 0.1 (:y tree))))) trees)})
@@ -136,26 +147,25 @@
 (defn tree-penetration
   "given a player, 
    returns the penetration deph of the closest tree"
-  [{:keys [player trees]}]
-  (let [{[x y] :pos} player]
-    (->> @game-state
-         :trees
-         (filter #(<= x (:r %)))
-         (filter #(>= x (:l %)))
-         (map #(- y (:y %)))
-         (filter #(>= % 0))
-         #(apply min %)
-         )))
+  [player]
+  (->> @game-state
+       :trees
+       (map #(assoc % :len [66 1]))
+       (map #(physics/rect-rect-collision % player))
+       (apply max)))
 
 (defn collision-resolver
   "receives the player and resolves its current collisions"
   [player]
-  (let [fp          (floor-penetration player)
-        new-player  (if (< fp 0) player (merge player (physics/resolve-collision player [0 -1] 0.5 fp)))
-        lwp         (left-wall-penetration new-player)
-        new-player  (if (< lwp 0) new-player (merge new-player (physics/resolve-collision new-player [1 0] 1 lwp)))
-        rwp         (right-wall-penetration new-player)
-        new-player  (if (< rwp 0) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))]
+  (let [fp         (floor-penetration player)
+        new-player (if (< fp 0) player (merge player (physics/resolve-collision player [0 -1] 0.5 fp)))
+        lwp        (left-wall-penetration new-player)
+        new-player (if (< lwp 0) new-player (merge new-player (physics/resolve-collision new-player [1 0] 1 lwp)))
+        rwp        (right-wall-penetration new-player)
+        new-player (if (< rwp 0) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))
+        tp         (tree-penetration new-player)
+        _ (println tp)
+        new-player (if (< tp 0.9) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0.5 tp)))]
     new-player))
 
 (defn change-state! [delta-time]
@@ -167,18 +177,18 @@
       (swap! game-state merge {:player new-player}))))
 
 (defn render-game []
-  (sab/html 
-     [:div.center-container
-      (if (:started? @game-state)
-        [:div.grid-container
-         [:img {:src   "../../images/background.png"
-                :style {:position "absolute"}}]
-         (map render-tree (:trees @game-state))
-         (render-player @game-state)]
-        
-        [:div
-         [:a.start-button {:onClick start-game!}
-          "START"]])]))
+  (sab/html
+   [:div.center-container
+    (if (:started? @game-state)
+      [:div.grid-container
+       [:img {:src   "../../images/background.png"
+              :style {:position "absolute"}}]
+       (map render-tree (:trees @game-state))
+       (render-player @game-state)]
+
+      [:div
+       [:a.start-button {:onClick start-game!}
+        "START"]])]))
 
 
 (defn renderer [last-time]
@@ -195,11 +205,10 @@
 (def start (js/performance.now))
 (js/requestAnimationFrame (renderer start))
 
-(comment 
+(comment
   (def particle {:pos [0 -1]
                  :vel [0 5]
                  :acc [0 0]
                  :mass 1})
-  
-  (tree-penetration particle)
-  )
+
+  (tree-penetration particle))
