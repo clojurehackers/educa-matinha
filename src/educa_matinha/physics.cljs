@@ -81,18 +81,15 @@
 (defn resolve-velocity
   "receives one or two particles, the contact normal and restitution constant,
    returns the particle(s) with updated velocities"
-  ([p0 normal restitution]
-   (let [sep-vel (separating-velocity p0 normal)]
+  ([{:keys [vel]
+     :as   particle} normal restitution]
+   (let [sep-vel (separating-velocity particle normal)]
      (if (<= sep-vel 0)
-       (let [{vel0 :vel}      p0
-             new-sep-vel      (* sep-vel -1 restitution)
-             delta-vel        (- new-sep-vel sep-vel)
-             total-inv-mass   (:mass p0)
-             impulse          (/ delta-vel total-inv-mass)
-             impulse-per-mass (ax impulse normal)
-             new-vel0         (ax (:mass p0) impulse-per-mass)]
-         [(assoc p0 :vel (sum vel0 new-vel0))])
-       [p0])))
+       (let [new-sep-vel (* sep-vel -1 restitution)
+             delta-vel   (- new-sep-vel sep-vel)
+             new-vel     (ax delta-vel normal)]
+         (assoc particle :vel (sum vel new-vel)))
+       particle)))
   
   ([p0 p1 normal restitution]
      (let [sep-vel (separating-velocity p0 p1 normal)]
@@ -112,13 +109,11 @@
 (defn resolve-interpenetration
   "receives one or two particles, the contact normal and penetration
    returns new positions of the particles"
-  ([p0 normal penetration]
+  ([{:keys [pos] 
+     :as   particle} normal penetration]
    (if (> penetration penetration-slop)
-     (let [total-inv-mass (:mass p0)
-           mov-per-mass   (ax (/ penetration total-inv-mass) normal)
-           new-pos0       (sum (:pos p0) (ax (:mass p0) mov-per-mass))]
-       [(assoc p0 :pos new-pos0)]) 
-     [p0]))
+     (assoc particle :pos (sum pos (ax penetration normal)))
+     particle))
 
   ([p0 p1 normal penetration]
    (when (> penetration 0)
@@ -130,12 +125,10 @@
 
 (defn resolve-collision
   "receives one or two particles and resolves their collision"
-  ([p0 normal restitution penetration]
-   (-> p0 
+  ([particle normal restitution penetration]
+   (-> particle
        (resolve-velocity normal restitution)
-       first
-       (resolve-interpenetration normal penetration)
-       first))
+       (resolve-interpenetration normal penetration)))
   
   ([p0 p1 normal restitution penetration]
    (-> p0
