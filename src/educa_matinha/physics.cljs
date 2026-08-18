@@ -28,11 +28,6 @@
   [a b]
   (apply + (map * a b)))
 
-(defn mult
-  "receives two vectors and returns their multiplication"
-  [a b]
-  (vec (map * a b)))
-
 (defn update-position
   "receives a particle as the first argument,
    time between the current and last mesurement as the second argument,
@@ -176,9 +171,6 @@
       0)))
 
 (comment
-  (js/performance.now)
-  (def time-a (js/performance.now))
-  (def time-b (+ 60 time-a))
   (def particle {:pos [0 -1]
                  :vel [0 5]
                  :acc [0 0]
@@ -218,8 +210,6 @@
   (mapv + [1 2] [3 4])
   (sum [1 2] [3 4] [5 6])
   (sum [1 2])
-  (let [[a & rest] [1 2 3]]
-    (println 'rest))
   
   (map + '(1 2))
   

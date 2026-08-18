@@ -5,29 +5,47 @@
    [sablono.core :as sab :include-macros true]
    [educa-matinha.physics :as physics]))
 
+(def tree-vel 0.01)
+
 (defonce trees #{{:pos [66 32]
-                  :len [66 0]}
+                  :len [66 0]
+                  :vel [0 tree-vel]
+                  :acc [0 0]}
                  
                  {:pos [66 160]
-                  :len [66 0]}
+                  :len [66 0]
+                  :vel [0 tree-vel]
+                  :acc [0 0]}
 
                  {:pos [66 320]
-                  :len [66 0]}
+                  :len [66 0]
+                  :vel [0 tree-vel]
+                  :acc [0 0]}
 
                  {:pos [66 460]
-                  :len [66 0]}
+                  :len [66 0]
+                  :vel [0 tree-vel]
+                  :acc [0 0]}
 
                  {:pos [274 16]
-                  :len [66 0]}
+                  :len [66 0]
+                  :vel [0 tree-vel]
+                  :acc [0 0]}
 
                  {:pos [274 160]
-                  :len [66 0]}
+                  :len [66 0]
+                  :vel [0 tree-vel]
+                  :acc [0 0]}
 
                  {:pos [274 320]
-                  :len [66 0]}
+                  :len [66 0]
+                  :vel [0 tree-vel]
+                  :acc [0 0]}
 
                  {:pos [274 480]
-                  :len [66 0]}})
+                  :len [66 0]
+                  :vel [0 tree-vel]
+                  :acc [0 0]}})
 
 (def floor 624)
 (def g 0.002)
@@ -133,7 +151,7 @@
         [col row] (-> @game-state :player :pos)]
 
     (cond->> {}
-      (and #_(= floor (-> player :pos second (Math/floor))) (contains? @keys-down "Space"))
+      (contains? @keys-down "Space")
       (merge (physics/apply-instant-force player [0 jump-force] delta-time))
 
       (contains? @keys-down "KeyD")
@@ -142,8 +160,10 @@
       (contains? @keys-down "KeyA")
       (merge {:pos [(- col 5) row]}))))
 
-(defn update-trees [trees]
-  {:trees (map (fn [tree] (if (> (:y tree) floor) (assoc tree :y -10) (assoc tree :y (+ 0.1 (:y tree))))) trees)})
+(defn update-trees! [trees delta-time]
+  (->> trees
+      (map #(physics/update-position % delta-time))
+       set))
 
 (defn floor-penetration
   "receives the player and returns the penetration depth between the player and the floor"
@@ -188,8 +208,10 @@
                          (merge (move delta-time))
                          (physics/update-position delta-time)
                          (collision-resolver)
-                         (gravity delta-time))]
-      (swap! game-state merge {:player new-player}))))
+                         (gravity delta-time))
+          new-trees (update-trees! (:trees @game-state) delta-time)]
+      (swap! game-state merge {:player new-player
+                               :trees  new-trees}))))
 
 (defn render-game []
   (sab/html
