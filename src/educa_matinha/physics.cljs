@@ -110,8 +110,8 @@
             (assoc p1 :vel (sum vel1 new-vel1))])))))
 
 (defn resolve-interpenetration
-  "receives one or two particles, the contact normal and penetration
-   returns new positions of the particles"
+  "receives one or two particles, the contact normal and penetration depth
+   returns particles with updated positions"
   ([{:keys [pos] 
      :as   particle} normal penetration]
    (if (> penetration penetration-slop)
@@ -162,58 +162,7 @@
         x3             (- d dd)
         y3             (- c dc)
         x4             (+ d dd)
-        y4             (+ c dc)
-       ; _ (println y1 y2 y3 y4)
-       ; _ (println x1 x2 x3 x4)
-        ]
+        y4             (+ c dc)]
     (if (> (interval-intersect x1 x2 x3 x4) 0)
       (interval-intersect y1 y2 y3 y4)
       0)))
-
-(comment
-  (def particle {:pos [0 -1]
-                 :vel [0 5]
-                 :acc [0 0]
-                 :mass 1})
-  
-  (dot [1 0] [0 1])
-  (dot (:vel particle) [1 0])
-  
-  (separating-velocity particle [0 1])
-  (* -1 (separating-velocity particle [0 1]))
-  (-> particle (resolve-velocity [0 -1] 1)
-      first
-      (resolve-interpenetration [0 -1] 1))
-  (resolve-velocity particle [0 -1] 1)
-  (resolve-interpenetration particle [0 -1] 1)
-  (resolve-collision particle [0 -1] 1 1)
-  
-  ;(delta-pos particle 8)
-  ;; gravity force
-  (def gravity [0 -20])
-  (def jump [0 4])
-  (apply-force particle gravity)
-  (if (not= nil particle) [1 1] [0 0])
-
-
-  (-> (apply-force particle jump)
-      (apply-force (mapv #(* % -1) jump)))
-  
-  (def tree {:pos [66 40]
-             :len [66 40]} )
-
-  
-  (def player {:pos [200 0]
-               :len [8 8]})
-  (rect-rect-collision tree player)
-
-  (mapv + [1 2] [3 4])
-  (sum [1 2] [3 4] [5 6])
-  (sum [1 2])
-  
-  (map + '(1 2))
-  
-  (map #(+ 1 %) '(1 2))
-
-  (apply max [0 1 nil])
-  )

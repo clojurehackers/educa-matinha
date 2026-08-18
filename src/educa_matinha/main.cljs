@@ -160,9 +160,14 @@
       (contains? @keys-down "KeyA")
       (merge {:pos [(- col 5) row]}))))
 
-(defn update-trees! [trees delta-time]
+(defn update-tree [{:keys [pos] :as tree} delta-time]
+  (if (> (second pos) (+ 16 floor))
+    (assoc-in tree [:pos 1] -96)
+    (physics/update-position tree delta-time)))
+
+(defn update-trees [trees delta-time]
   (->> trees
-      (map #(physics/update-position % delta-time))
+       (map #(update-tree % delta-time))
        set))
 
 (defn floor-penetration
@@ -209,7 +214,7 @@
                          (physics/update-position delta-time)
                          (collision-resolver)
                          (gravity delta-time))
-          new-trees (update-trees! (:trees @game-state) delta-time)]
+          new-trees (update-trees (:trees @game-state) delta-time)]
       (swap! game-state merge {:player new-player
                                :trees  new-trees}))))
 
@@ -248,11 +253,3 @@
 
 (def start (js/performance.now))
 (js/requestAnimationFrame (renderer start))
-
-(comment
-  (def particle {:pos [0 -1]
-                 :vel [0 5]
-                 :acc [0 0]
-                 :mass 1})
-
-  (tree-penetration particle))
