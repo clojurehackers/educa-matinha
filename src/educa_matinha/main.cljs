@@ -90,7 +90,9 @@
 (defn gravity
   "returns an updated player"
   [player delta-time]
-  (physics/delta-pos player delta-time))
+  (-> player
+      (physics/apply-acceleration delta-time)
+      (physics/update-position delta-time)))
 
 (defn remove-commands [e]
   (let [code (str (.-code e))

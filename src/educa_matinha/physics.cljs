@@ -10,12 +10,13 @@
 (defn ax
   "receives a scalar a and a vector x, returns the multiplication ax"
   [a x]
-  (vec (map #(* a %) x)))
+  (mapv #(* a %) x))
 
 (defn sum
-  "receives two vectors and returns their sum"
-  [a b]
-  (vec (map + a b)))
+  "receives vectors and returns a vector representing their sum"
+  ([a] a)
+  ([a & vectors]
+   (mapv + a (apply sum vectors))))
 
 (defn sub
   "receives two vectors and subtracts them"
@@ -32,39 +33,47 @@
   [a b]
   (vec (map * a b)))
 
-(defn delta-pos
-  "receives a particle as first argument
-   and delta-time between the current and last mesurement as the second argument
-   returns an updated map with new position, velocity and acceleration"
-  [{:keys [pos vel acc] :as particle}
+(defn update-position
+  "receives a particle as the first argument,
+   time between the current and last mesurement as the second argument,
+   returns a particle with new velocity based on current acceleration"
+  [{:keys [pos vel acc]
+    :as   particle}
    delta-time]
-  (let [delta-vel  (mapv #(* delta-time %) acc)
-        new-vel    (mapv + vel delta-vel)
-        delta-pos1 (mapv #(* delta-time %) vel)
-        delta-pos2 (mapv #(* % delta-time delta-time 0.5) acc)
-        new-pos    (mapv + pos delta-pos1 delta-pos2)]
-    (assoc particle
-           :pos new-pos
-           :vel new-vel)))
+  (let [delta-pos1 (ax delta-time vel)
+        delta-pos2 (ax (* delta-time delta-time 0.5) acc)
+        new-pos    (sum pos delta-pos1 delta-pos2)]
+    (assoc particle :pos new-pos)))
+
+(defn apply-acceleration
+  "receives a particle as the first argument,
+   time between the current and last mesurement as the second argument,
+   returns a particle with new velocity based on current acceleration"
+  [{:keys [vel acc] 
+    :as   particle} delta-time]
+  (let [delta-vel (ax delta-time acc)
+        new-vel   (sum vel delta-vel)]
+    (assoc particle :vel new-vel)))
 
 (defn apply-force 
   "receives a particle as first argument and force as second argument
    retuns the particle after the force was applied"
   [{:keys [acc mass] :as particle} force]
-  (let [delta-acc (mapv #(/ % mass) force)
-        new-acc   (mapv + acc delta-acc)]
+  (let [delta-acc (ax (/ 1 mass) force)
+        new-acc   (sum acc delta-acc)]
     (assoc particle :acc new-acc)))
 
 (defn apply-instant-force
-  "receives a particle as first argument and force as second argument
+  "receives a particle as the first argument, force as the second argument 
+   and delta-time as the third argument
    retuns the particle after the force was applied for an instant"
-  [{:keys [acc mass] :as particle} force delta-time]
-  (let [delta-acc (mapv #(/ % mass) force)
-        new-acc   (mapv + acc delta-acc)]
-    (-> particle
-        (assoc :acc new-acc)
-        (delta-pos delta-time)
-        (assoc :acc acc))))
+  [{:keys [acc]
+    :as   particle} force delta-time]
+  (-> particle
+      (apply-force force)
+      (apply-acceleration delta-time)
+      (update-position delta-time)
+      (assoc :acc acc)))
 
 (defn separating-velocity
   "receives one or two particles and the contact normal,
@@ -94,8 +103,8 @@
   ([p0 p1 normal restitution]
      (let [sep-vel (separating-velocity p0 p1 normal)]
        (when (<= sep-vel 0)
-         (let [{vel0 :vel}  p0
-               {vel1 :vel}  p1
+         (let [{vel0 :vel}      p0
+               {vel1 :vel}      p1
                new-sep-vel      (* sep-vel -1 restitution)
                delta-vel        (- new-sep-vel sep-vel)
                total-inv-mass   (+ (:mass p0) (:mass p1))
@@ -188,7 +197,7 @@
   (resolve-interpenetration particle [0 -1] 1)
   (resolve-collision particle [0 -1] 1 1)
   
-  (delta-pos particle 8)
+  ;(delta-pos particle 8)
   ;; gravity force
   (def gravity [0 -20])
   (def jump [0 4])
@@ -206,6 +215,16 @@
   (def player {:pos [200 0]
                :len [8 8]})
   (rect-rect-collision tree player)
+
+  (mapv + [1 2] [3 4])
+  (sum [1 2] [3 4] [5 6])
+  (sum [1 2])
+  (let [[a & rest] [1 2 3]]
+    (println 'rest))
+  
+  (map + '(1 2))
+  
+  (map #(+ 1 %) '(1 2))
 
   (apply max [0 1 nil])
   )
