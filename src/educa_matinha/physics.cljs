@@ -72,7 +72,6 @@
   (-> particle
       (apply-force force)
       (apply-acceleration delta-time)
-      (update-position delta-time)
       (assoc :acc acc)))
 
 (defn separating-velocity

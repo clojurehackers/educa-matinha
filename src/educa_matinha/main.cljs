@@ -30,14 +30,14 @@
                   :len [66 0]}})
 
 (def floor 624)
-(def g 0.001)
-(def jump-force -0.005)
+(def g 0.002)
+(def jump-force -0.01)
 
 (defonce game-state (atom {:started? false
                            :paused?  false
                            :player   {:pos  [160 floor]
                                       :len  [8 8]
-                                      :vel  [0.1 0]
+                                      :vel  [0.05 0]
                                       :acc  [0 g]
                                       :mass 1}
                            :trees    trees}))
@@ -90,9 +90,7 @@
 (defn gravity
   "returns an updated player"
   [player delta-time]
-  (-> player
-      (physics/apply-acceleration delta-time)
-      (physics/update-position delta-time)))
+  (physics/apply-acceleration player delta-time))
 
 (defn remove-commands [e]
   (let [code (str (.-code e))
@@ -188,8 +186,9 @@
   (when (and (:started? @game-state) (not (:paused? @game-state)))
     (let [new-player (-> (:player @game-state)
                          (merge (move delta-time))
-                         (gravity delta-time)
-                         (collision-resolver))]
+                         (physics/update-position delta-time)
+                         (collision-resolver)
+                         (gravity delta-time))]
       (swap! game-state merge {:player new-player}))))
 
 (defn render-game []
