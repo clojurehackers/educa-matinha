@@ -221,6 +221,7 @@
 (defn render-game []
   (sab/html
    [:div.center-container
+    [:div.border-container]
     [:div.grid-container
      [:img {:src   "../../images/background.png"
             :style {:position "absolute"
@@ -236,7 +237,8 @@
        
        [:div
         [:a.start-button {:onClick start-game!}
-         "START"]])]]))
+         "START"]])]
+    [:div.border-container]]))
 
 
 (defn renderer [last-time]

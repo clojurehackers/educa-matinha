@@ -75,3 +75,11 @@ body {
   width: 320px;
   height: 640px;
 }
+
+.border-container {
+  display: grid;
+  width: 320px;
+  height: 100px;
+  background-color: rgb(32, 32, 85);
+  z-index: 9999;
+}
