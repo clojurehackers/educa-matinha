@@ -11,7 +11,7 @@
                   :len [66 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}
-                 
+
                  {:pos [66 160]
                   :len [66 0]
                   :vel [0 tree-vel]
@@ -72,8 +72,7 @@
     (swap! game-state assoc :paused? true)))
 
 (defn resume-game! []
-  (when (:started? @game-state)
-    (swap! game-state assoc :paused? false)))
+  (swap! game-state assoc :paused? false))
 
 (defn render-tree
   [tree]
@@ -90,7 +89,7 @@
                [:img {:src (str "../../images/" dir "-tree.png")}]])))
 
 (defn render-player
-  [{:keys [player]}]
+  [player]
   (when player
     (let [{[col row] :pos
            [dx dy]   :len} player
@@ -123,7 +122,7 @@
 
       (= code "KeyA")
       (swap! keys-down disj code)
-      
+
       (= code "Escape")
       (swap! keys-down disj code))))
 
@@ -140,7 +139,7 @@
 
       (= code "KeyA")
       (swap! keys-down conj code)
-      
+
       (= code "Escape")
       (swap! keys-down conj code))))
 
@@ -207,34 +206,35 @@
         new-player (if (< tp 0.1) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0 tp)))]
     new-player))
 
-(defn change-state! [delta-time]
-  (when (and (:started? @game-state) (not (:paused? @game-state)))
-    (let [new-player (-> (:player @game-state)
+(defn change-state! [{:keys [started? paused? trees player]} delta-time]
+  (when (and started? (not paused?))
+    (let [new-player (-> player
                          (merge (move delta-time))
                          (physics/update-position delta-time)
                          (collision-resolver)
                          (gravity delta-time))
-          new-trees (update-trees (:trees @game-state) delta-time)]
+          new-trees (update-trees trees delta-time)]
       (swap! game-state merge {:player new-player
                                :trees  new-trees}))))
 
-(defn render-game []
+(defn render-game [{:keys [started? paused? trees player]}]
   (sab/html
    [:div.center-container
-    [:div.border-container]
+    [:div.border-container
+     {:style {:margin-top "-10px"}}]
     [:div.grid-container
      [:img {:src   "../../images/background.png"
             :style {:position "absolute"
                     :opacity  "60%"}}]
-     (if (:started? @game-state)
-       (if (:paused? @game-state)
+     (if started?
+       (if paused?
          [:div
           [:a.resume-button {:onClick resume-game!}
            "RESUME"]]
-         
-         [(map render-tree (:trees @game-state))
-          (render-player @game-state)])
-       
+
+         [(map render-tree trees)
+          (render-player player)])
+
        [:div
         [:a.start-button {:onClick start-game!}
          "START"]])]
@@ -246,8 +246,8 @@
     (let [delta-time (if (not= nil last-time) (- timestamp last-time) 0)
           node       (.getElementById js/document "app")]
       (when (contains? @keys-down "Escape") (pause-game!))
-      (.render js/ReactDOM (render-game) node)
-      (change-state! delta-time)
+      (.render js/ReactDOM (render-game @game-state) node)
+      (change-state! @game-state delta-time)
       (js/requestAnimationFrame (renderer timestamp)))))
 
 (.addEventListener js/document "keydown" add-commands)
