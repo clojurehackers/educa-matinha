@@ -126,24 +126,6 @@
          new-pos1       (sum (:pos p1) (ax (:mass p1) mov-per-mass))]
      [(assoc p0 :pos new-pos0) (assoc p1 :pos new-pos1)])))
 
-(defn resolve-collision
-  "receives one or two particles and resolves their collision"
-  ([particle normal restitution penetration]
-   (if (> penetration penetration-slop)
-     (-> particle
-         (resolve-velocity normal restitution)
-         (resolve-interpenetration normal penetration))
-     particle))
-  
-  ([p0 p1 normal restitution penetration]
-   (if (> penetration penetration-slop)
-     (-> p0
-         (resolve-velocity p1 normal restitution)
-         first
-         (resolve-interpenetration p1 normal penetration)
-         first)
-     p0)))
-
 (defn interval-intersect
   "receives two intervals and returns whether they intersect"
   [a b c d]
@@ -159,10 +141,32 @@
   [{[x1 y1] :pos
     [l1 h1] :len}
    {[x2 y2] :pos
-    [l2 h2] :len}]
-  (if (> (interval-intersect x1 (+ x1 l1) x2 (+ x2 l2)) 0)
-    (interval-intersect y1 (+ y1 h1) y2 (+ y2 h2))
-    0))
+    [l2 h2] :len}
+   normal]
+  (let [px (interval-intersect x1 (+ x1 l1) x2 (+ x2 l2))
+        py (interval-intersect y1 (+ y1 h1) y2 (+ y2 h2))]
+    (if (and (> py 0) (> px 0))
+      (Math/abs (dot [px py] normal)) ; TODO: add direction
+      0)))
+
+(defn resolve-collision
+  "receives one or two particles and resolves their collision"
+  ([particle normal restitution penetration]
+   (if (> penetration penetration-slop)
+     (-> particle
+         (resolve-velocity normal restitution)
+         (resolve-interpenetration normal penetration))
+     particle))
+  
+  ([p0 p1 normal restitution _p]
+   (let [penetration (rect-rect-collision p0 p1 normal)] 
+     (if (> penetration penetration-slop)
+       (-> p0
+           (resolve-velocity p1 normal restitution)
+           first
+           (resolve-interpenetration p1 normal penetration)
+           first)
+       p0))))
 
 #_(defn create-object
   "receives the name, position, length, mass, velocity and acceleration
@@ -194,4 +198,5 @@
   (resolve-interpenetration (:player game) [0 -1] 2)
   (resolve-interpenetration (:player game) (:floor game) [0 -1] 2)
   (resolve-collision (:player game) (:floor game) [0 -1] 0.5 2)
+  (Math/abs 0)
   )

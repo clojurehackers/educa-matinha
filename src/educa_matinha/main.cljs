@@ -51,24 +51,30 @@
 (def g 0.002)
 (def jump-force -0.01)
 
-(defonce game-state (atom {:started? false
-                           :paused?  false
-                           :player   {:pos  [160 0]
-                                      :len  [16 16]
-                                      :vel  [0.05 0]
-                                      :acc  [0 g]
-                                      :mass 1}
-                           :trees    trees
-                           :floor    {:pos  [0 floor]
-                                      :len  [320 10]
-                                      :vel  [0 0]
-                                      :acc  [0 0]
-                                      :mass 0}
-                           :left-wall {:pos  [0 0]
-                                       :len  [0 640]
-                                       :vel  [0 0]
-                                       :acc  [0 0]
-                                       :mass 0}}))
+(defonce game-state (atom {:started?   false
+                           :paused?    false
+                           :player     {:pos  [160 0]
+                                        :len  [16 16]
+                                        :vel  [0.05 0]
+                                        :acc  [0 g]
+                                        :mass 1}
+                           :trees      trees
+                           :floor      {:pos  [0 floor]
+                                        :len  [320 10]
+                                        :vel  [0 0]
+                                        :acc  [0 0]
+                                        :mass 0}
+                           :left-wall  {:pos  [-10 0]
+                                        :len  [10 650]
+                                        :vel  [0 0]
+                                        :acc  [0 0]
+                                        :mass 0}
+                           
+                           :right-wall {:pos  [320 0]
+                                        :len  [10 650]
+                                        :vel  [0 0]
+                                        :acc  [0 0]
+                                        :mass 0}}))
 
 (defonce keys-down (atom #{}))
 
@@ -172,42 +178,21 @@
        (map #(update-tree % delta-time))
        set))
 
-(defn floor-penetration
-  "receives the player and returns the penetration depth between the player and the floor"
-  [player]
-  (physics/rect-rect-collision player (:floor @game-state)))
-
-(defn left-wall-penetration
-  "receives the player and returns the penetration depth between the player and the left wall"
-  [player]
-  (def r (physics/rect-rect-collision player (:left-wall @game-state)) #_(- 0 (first pos)))
-  (println r)
-  (min r 4.18))
-
-(defn right-wall-penetration
-  "receives the player and returns the penetration depth between the player and the right wall"
-  [{:keys [pos]}]
-  (- (first pos) (* 16 19)))
-
 (defn tree-penetration
   "given a player, 
    returns the penetration deph of the closest tree"
   [player]
   (->> @game-state
        :trees
-       (map #(physics/rect-rect-collision % player))
+       (map #(physics/rect-rect-collision % player [0 1]))
        (apply max)))
 
 (defn collision-resolver
   "receives the player and resolves its current collisions"
   [player]
-  (let [fp         (floor-penetration player)
-        new-player (merge player (physics/resolve-collision player (:floor @game-state) [0 -1] 0.5 fp))
-        lwp        (left-wall-penetration new-player)
-        ;new-player (merge player (physics/resolve-collision player (:left-wall @game-state) [1 0] 1 lwp))
-        new-player (if (< lwp 0) new-player (merge new-player (physics/resolve-collision new-player [1 0] 1 lwp)))
-        rwp        (right-wall-penetration new-player)
-        new-player (if (< rwp 0) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))
+  (let [new-player (merge player (physics/resolve-collision player (:floor @game-state) [0 -1] 0.5 0))
+        new-player (merge player (physics/resolve-collision new-player (:left-wall @game-state) [1 0] 1 0))
+        new-player (merge player (physics/resolve-collision new-player (:right-wall @game-state) [-1 0] 1 0))
         tp         (tree-penetration new-player)
         new-player (if (< tp 0.1) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0 tp)))]
     new-player))
