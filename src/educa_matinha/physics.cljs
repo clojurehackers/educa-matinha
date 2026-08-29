@@ -7,6 +7,8 @@
 
 (def penetration-slop 0.01)
 
+#_(defonce world (atom {}))
+
 (defn ax
   "receives a scalar a and a vector x, returns the multiplication ax"
   [a x]
@@ -96,7 +98,7 @@
   
   ([p0 p1 normal restitution]
      (let [sep-vel (separating-velocity p0 p1 normal)]
-       (when (<= sep-vel 0)
+       (if (<= sep-vel 0)
          (let [{vel0 :vel}      p0
                {vel1 :vel}      p1
                new-sep-vel      (* sep-vel -1 restitution)
@@ -107,36 +109,40 @@
                new-vel0         (ax (:mass p0) impulse-per-mass)
                new-vel1         (ax (:mass p1) impulse-per-mass)]
            [(assoc p0 :vel (sum vel0 new-vel0))
-            (assoc p1 :vel (sum vel1 new-vel1))])))))
+            (assoc p1 :vel (sum vel1 new-vel1))])
+         [p0 p1]))))
 
 (defn resolve-interpenetration
   "receives one or two particles, the contact normal and penetration depth
    returns particles with updated positions"
   ([{:keys [pos] 
      :as   particle} normal penetration]
-   (if (> penetration penetration-slop)
-     (assoc particle :pos (sum pos (ax penetration normal)))
-     particle))
+   (assoc particle :pos (sum pos (ax penetration normal))))
 
   ([p0 p1 normal penetration]
-   (when (> penetration 0)
-     (let [total-inv-mass (+ (:mass p0) (:mass p1))
-           mov-per-mass   (->> normal (ax -1) (ax (/ penetration total-inv-mass)))
-           new-pos0       (sum (:pos p0) (ax (:mass p0) mov-per-mass))
-           new-pos1       (sum (:pos p1) (ax (:mass p1) mov-per-mass))]
-       [(assoc p0 :pos new-pos0) (assoc p1 :pos new-pos1)]))))
+   (let [total-inv-mass (+ (:mass p0) (:mass p1))
+         mov-per-mass   (->> normal (ax (/ penetration total-inv-mass)))
+         new-pos0       (sum (:pos p0) (ax (:mass p0) mov-per-mass))
+         new-pos1       (sum (:pos p1) (ax (:mass p1) mov-per-mass))]
+     [(assoc p0 :pos new-pos0) (assoc p1 :pos new-pos1)])))
 
 (defn resolve-collision
   "receives one or two particles and resolves their collision"
   ([particle normal restitution penetration]
-   (-> particle
-       (resolve-velocity normal restitution)
-       (resolve-interpenetration normal penetration)))
+   (if (> penetration penetration-slop)
+     (-> particle
+         (resolve-velocity normal restitution)
+         (resolve-interpenetration normal penetration))
+     particle))
   
   ([p0 p1 normal restitution penetration]
-   (-> p0
-       (resolve-velocity p1 normal restitution)
-       (resolve-interpenetration p1 normal penetration))))
+   (if (> penetration penetration-slop)
+     (-> p0
+         (resolve-velocity p1 normal restitution)
+         first
+         (resolve-interpenetration p1 normal penetration)
+         first)
+     p0)))
 
 (defn interval-intersect
   "receives two intervals and returns whether they intersect"
@@ -150,19 +156,42 @@
    {:p1 [x y] (top-left corner)
     :p2 [x y] (bottom-right corner)}
    and returns the penetration depth and the normal"
-  [rect1 rect2]
-  (let [{[a b]   :pos
-         [da db] :len} rect1
-        {[d c]   :pos
-         [dd dc] :len} rect2
-        x1             (- a da)
-        y1             (- b db)
-        x2             (+ a da)
-        y2             (+ b db)
-        x3             (- d dd)
-        y3             (- c dc)
-        x4             (+ d dd)
-        y4             (+ c dc)]
-    (if (> (interval-intersect x1 x2 x3 x4) 0)
-      (interval-intersect y1 y2 y3 y4)
-      0)))
+  [{[x1 y1] :pos
+    [l1 h1] :len}
+   {[x2 y2] :pos
+    [l2 h2] :len}]
+  (if (> (interval-intersect x1 (+ x1 l1) x2 (+ x2 l2)) 0)
+    (interval-intersect y1 (+ y1 h1) y2 (+ y2 h2))
+    0))
+
+#_(defn create-object
+  "receives the name, position, length, mass, velocity and acceleration
+   returns the object"
+  [name pos len mass vel acc]
+  (swap! world assoc (keyword name) {:pos  pos
+                                     :vel  vel
+                                     :len  len
+                                     :mass mass
+                                     :acc  acc}))
+
+(comment
+  (def game {:started? false
+             :paused?  false
+             :player   {:pos  [160 642]
+                        :len  [16 16]
+                        :vel  [0.05 3]
+                        :acc  [0 0.002]
+                        :mass 1}
+             :floor    {:pos  [0 640]
+                        :len  [320 10]
+                        :vel  [0 0]
+                        :acc  [0 0]
+                        :mass 0}})
+  (separating-velocity (:player game) [0 -1])
+  (separating-velocity (:player game) (:floor game) [0 -1])
+  (resolve-velocity (:player game) #_(:floor game) [0 -1] 0.5)
+  (resolve-velocity (:player game) (:floor game) [0 -1] 0.5)
+  (resolve-interpenetration (:player game) [0 -1] 2)
+  (resolve-interpenetration (:player game) (:floor game) [0 -1] 2)
+  (resolve-collision (:player game) (:floor game) [0 -1] 0.5 2)
+  )

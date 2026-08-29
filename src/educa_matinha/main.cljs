@@ -7,58 +7,68 @@
 
 (def tree-vel 0.01)
 
-(defonce trees #{{:pos [66 32]
-                  :len [66 0]
+(defonce trees #{{:pos [0 32]
+                  :len [112 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}
 
-                 {:pos [66 160]
-                  :len [66 0]
+                 {:pos [0 160]
+                  :len [112 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}
 
-                 {:pos [66 320]
-                  :len [66 0]
+                 {:pos [0 320]
+                  :len [112 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}
 
-                 {:pos [66 460]
-                  :len [66 0]
+                 {:pos [0 460]
+                  :len [112 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}
 
-                 {:pos [274 16]
-                  :len [66 0]
+                 {:pos [208 16]
+                  :len [112 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}
 
-                 {:pos [274 160]
-                  :len [66 0]
+                 {:pos [208 160]
+                  :len [112 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}
 
-                 {:pos [274 320]
-                  :len [66 0]
+                 {:pos [208 320]
+                  :len [112 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}
 
-                 {:pos [274 480]
-                  :len [66 0]
+                 {:pos [208 480]
+                  :len [112 0]
                   :vel [0 tree-vel]
                   :acc [0 0]}})
 
-(def floor 624)
+(def floor 640)
 (def g 0.002)
 (def jump-force -0.01)
 
 (defonce game-state (atom {:started? false
                            :paused?  false
-                           :player   {:pos  [160 floor]
-                                      :len  [8 8]
+                           :player   {:pos  [160 0]
+                                      :len  [16 16]
                                       :vel  [0.05 0]
                                       :acc  [0 g]
                                       :mass 1}
-                           :trees    trees}))
+                           :trees    trees
+                           :floor    {:pos  [0 floor]
+                                      :len  [320 10]
+                                      :vel  [0 0]
+                                      :acc  [0 0]
+                                      :mass 0}
+                           :left-wall {:pos  [0 0]
+                                       :len  [0 640]
+                                       :vel  [0 0]
+                                       :acc  [0 0]
+                                       :mass 0}}))
 
 (defonce keys-down (atom #{}))
 
@@ -75,34 +85,27 @@
   (swap! game-state assoc :paused? false))
 
 (defn render-tree
-  [tree]
-  (let [{[x y]   :pos
-         [dx dy] :len} tree
-        l              (- x dx)
-        y              (- y dy)
-        dir            (if (= 0 l) "left" "right")]
+  [{[x y] :pos}]
+  (let [dir (if (= 0 x) "left" "right")]
     (sab/html [:div
-               {:key   (str y "-" l)
+               {:key   (str y "-" x)
                 :style {:margin-top  (to-px y)
-                        :margin-left (to-px l)
+                        :margin-left (to-px x)
                         :position    "absolute"}}
                [:img {:src (str "../../images/" dir "-tree.png")}]])))
 
 (defn render-player
   [player]
-  (when player
-    (let [{[col row] :pos
-           [dx dy]   :len} player
-          col              (- col dx)
-          row              (- row dy)]
-      (sab/html [:div
-                 {:key   (str row "-" col)
-                  :style {:margin-top       (to-px row)
-                          :margin-left      (to-px col)
-                          :width            "16px"
-                          :height           "16px"
-                          :position         "absolute"
-                          :background-color "orange"}}]))))
+  (let [{[col row] :pos
+         [dx dy]   :len} player]
+    (sab/html [:div
+               {:key   (str row "-" col)
+                :style {:margin-top       (to-px row)
+                        :margin-left      (to-px col)
+                        :width            "16px"
+                        :height           "16px"
+                        :position         "absolute"
+                        :background-color "orange"}}])))
 
 (defn gravity
   "returns an updated player"
@@ -160,7 +163,7 @@
       (merge {:pos [(- col 5) row]}))))
 
 (defn update-tree [{:keys [pos] :as tree} delta-time]
-  (if (> (second pos) (+ 16 floor))
+  (if (> (second pos) floor)
     (assoc-in tree [:pos 1] -96)
     (physics/update-position tree delta-time)))
 
@@ -171,18 +174,20 @@
 
 (defn floor-penetration
   "receives the player and returns the penetration depth between the player and the floor"
-  [{:keys [pos len]}]
-  (- (second pos) (second len) floor))
+  [player]
+  (physics/rect-rect-collision player (:floor @game-state)))
 
 (defn left-wall-penetration
   "receives the player and returns the penetration depth between the player and the left wall"
-  [{:keys [pos len]}]
-  (+ (first len) (- 0 (first pos))))
+  [player]
+  (def r (physics/rect-rect-collision player (:left-wall @game-state)) #_(- 0 (first pos)))
+  (println r)
+  (min r 4.18))
 
 (defn right-wall-penetration
   "receives the player and returns the penetration depth between the player and the right wall"
-  [{:keys [pos len]}]
-  (- (first pos) (first len) (* 16 19)))
+  [{:keys [pos]}]
+  (- (first pos) (* 16 19)))
 
 (defn tree-penetration
   "given a player, 
@@ -197,8 +202,9 @@
   "receives the player and resolves its current collisions"
   [player]
   (let [fp         (floor-penetration player)
-        new-player (if (< fp 0) player (merge player (physics/resolve-collision player [0 -1] 0.5 fp)))
+        new-player (merge player (physics/resolve-collision player (:floor @game-state) [0 -1] 0.5 fp))
         lwp        (left-wall-penetration new-player)
+        ;new-player (merge player (physics/resolve-collision player (:left-wall @game-state) [1 0] 1 lwp))
         new-player (if (< lwp 0) new-player (merge new-player (physics/resolve-collision new-player [1 0] 1 lwp)))
         rwp        (right-wall-penetration new-player)
         new-player (if (< rwp 0) new-player (merge new-player (physics/resolve-collision new-player [-1 0] 1 rwp)))
