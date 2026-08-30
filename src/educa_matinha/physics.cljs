@@ -7,8 +7,6 @@
 
 (def penetration-slop 0.01)
 
-#_(defonce world (atom {}))
-
 (defn ax
   "receives a scalar a and a vector x, returns the multiplication ax"
   [a x]
@@ -135,9 +133,10 @@
 
 (defn rect-rect-collision
   "receives two rectangles:
-   {:p1 [x y] (top-left corner)
-    :p2 [x y] (bottom-right corner)}
-   and returns the penetration depth and the normal"
+   {:pos [x y] (top-left corner)
+    :len [l h] (lenght of the sides)}
+   and the normal
+   returns the penetration depth"
   [{[x1 y1] :pos
     [l1 h1] :len}
    {[x2 y2] :pos
@@ -168,15 +167,27 @@
            first)
        p0))))
 
-#_(defn create-object
+;TODO add to different namespace
+(defonce world (atom {}))
+
+(defn create-object!
   "receives the name, position, length, mass, velocity and acceleration
-   returns the object"
-  [name pos len mass vel acc]
+   mutates the word, adding the object"
+  [name pos len vel acc mass]
   (swap! world assoc (keyword name) {:pos  pos
                                      :vel  vel
                                      :len  len
                                      :mass mass
                                      :acc  acc}))
+
+(defn update-object!
+  [name object]
+  (swap! world merge {(keyword name) object}))
+
+(defn get-object
+  "receive the object"
+  [name]
+  ((keyword name) @world))
 
 (comment
   (def game {:started? false

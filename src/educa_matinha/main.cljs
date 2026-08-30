@@ -53,28 +53,7 @@
 
 (defonce game-state (atom {:started?   false
                            :paused?    false
-                           :player     {:pos  [160 0]
-                                        :len  [16 16]
-                                        :vel  [0.05 0]
-                                        :acc  [0 g]
-                                        :mass 1}
-                           :trees      trees
-                           :floor      {:pos  [0 floor]
-                                        :len  [320 10]
-                                        :vel  [0 0]
-                                        :acc  [0 0]
-                                        :mass 0}
-                           :left-wall  {:pos  [-10 0]
-                                        :len  [10 650]
-                                        :vel  [0 0]
-                                        :acc  [0 0]
-                                        :mass 0}
-                           
-                           :right-wall {:pos  [320 0]
-                                        :len  [10 650]
-                                        :vel  [0 0]
-                                        :acc  [0 0]
-                                        :mass 0}}))
+                           :trees      trees}))
 
 (defonce keys-down (atom #{}))
 
@@ -108,8 +87,8 @@
                {:key   (str row "-" col)
                 :style {:margin-top       (to-px row)
                         :margin-left      (to-px col)
-                        :width            "16px"
-                        :height           "16px"
+                        :width            (to-px dx)
+                        :height           (to-px dy)
                         :position         "absolute"
                         :background-color "orange"}}])))
 
@@ -190,25 +169,27 @@
 (defn collision-resolver
   "receives the player and resolves its current collisions"
   [player]
-  (let [new-player (merge player (physics/resolve-collision player (:floor @game-state) [0 -1] 0.5 0))
-        new-player (merge player (physics/resolve-collision new-player (:left-wall @game-state) [1 0] 1 0))
-        new-player (merge player (physics/resolve-collision new-player (:right-wall @game-state) [-1 0] 1 0))
+  (let [new-player (merge player (physics/resolve-collision player (physics/get-object "floor") [0 -1] 0.5 0))
+        new-player (merge player (physics/resolve-collision new-player (physics/get-object "left-wall") [1 0] 1 0))
+        new-player (merge player (physics/resolve-collision new-player (physics/get-object "right-wall") [-1 0] 1 0))
         tp         (tree-penetration new-player)
         new-player (if (< tp 0.1) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0 tp)))]
-    new-player))
+    new-player))     
 
-(defn change-state! [{:keys [started? paused? trees player]} delta-time]
+(defn change-state! [{:keys [started? paused? trees]} delta-time]
   (when (and started? (not paused?))
-    (let [new-player (-> player
+    (let [new-player (-> "player"
+                         (physics/get-object)
                          (merge (move delta-time))
                          (physics/update-position delta-time)
                          (collision-resolver)
                          (gravity delta-time))
           new-trees (update-trees trees delta-time)]
+      (physics/update-object! "player" new-player)
       (swap! game-state merge {:player new-player
                                :trees  new-trees}))))
 
-(defn render-game [{:keys [started? paused? trees player]}]
+(defn render-game [{:keys [started? paused? trees]}]
   (sab/html
    [:div.center-container
     [:div.border-container
@@ -224,7 +205,7 @@
            "RESUME"]]
 
          [(map render-tree trees)
-          (render-player player)])
+          (render-player (physics/get-object "player"))])
 
        [:div
         [:a.start-button {:onClick start-game!}
@@ -244,5 +225,13 @@
 (.addEventListener js/document "keydown" add-commands)
 (.addEventListener js/document "keyup" remove-commands)
 
-(def start (js/performance.now))
-(js/requestAnimationFrame (renderer start))
+(defn start-game []
+  (let [start-time (js/performance.now)]
+    (physics/create-object! "player" [160 0] [16 16] [0.05 0] [0 g] 1) 
+    (physics/create-object! "floor" [0 floor] [320 10] [0 0] [0 0] 0)
+    (physics/create-object! "right-wall" [320 0] [10 650] [0 0] [0 0] 0)
+    (physics/create-object! "left-wall" [-10 0] [10 650] [0 0] [0 0] 0)
+
+    (js/requestAnimationFrame (renderer start-time))))
+
+(start-game)
