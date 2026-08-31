@@ -134,11 +134,11 @@
 (defn move
   "returns an updated player"
   [delta-time]
-  (let [player (:player @game-state)
-        [col row] (-> @game-state :player :pos)]
+  (let [player (physics/get-object "player")
+        [col row] (:pos player)]
 
     (cond->> {}
-      (contains? @keys-down "Space")
+     (contains? @keys-down "Space")
       (merge (physics/apply-instant-force player [0 jump-force] delta-time))
 
       (contains? @keys-down "KeyD")
@@ -161,19 +161,20 @@
   "given a player, 
    returns the penetration deph of the closest tree"
   [player]
-  (->> @game-state
-       :trees
-       (map #(physics/rect-rect-collision % player [0 1]))
-       (apply max)))
+  (let [collisions (->> @game-state
+                        :trees
+                        (map #(physics/resolve-collision player % [0 -1] 0 0)))] 
+    (apply merge `(~@collisions))))
+
+(tree-penetration {})
 
 (defn collision-resolver
   "receives the player and resolves its current collisions"
   [player]
   (let [new-player (merge player (physics/resolve-collision player (physics/get-object "floor") [0 -1] 0.5 0))
-        new-player (merge player (physics/resolve-collision new-player (physics/get-object "left-wall") [1 0] 1 0))
-        new-player (merge player (physics/resolve-collision new-player (physics/get-object "right-wall") [-1 0] 1 0))
-        tp         (tree-penetration new-player)
-        new-player (if (< tp 0.1) new-player (merge new-player (physics/resolve-collision new-player [0 -1] 0 tp)))]
+        new-player (merge new-player (physics/resolve-collision new-player (physics/get-object "left-wall") [1 0] 1 0))
+        new-player (merge new-player (physics/resolve-collision new-player (physics/get-object "right-wall") [-1 0] 1 0))
+        new-player (merge new-player (tree-penetration new-player))]
     new-player))     
 
 (defn change-state! [{:keys [started? paused? trees]} delta-time]
@@ -186,8 +187,7 @@
                          (gravity delta-time))
           new-trees (update-trees trees delta-time)]
       (physics/update-object! "player" new-player)
-      (swap! game-state merge {:player new-player
-                               :trees  new-trees}))))
+      (swap! game-state merge {:trees  new-trees}))))
 
 (defn render-game [{:keys [started? paused? trees]}]
   (sab/html

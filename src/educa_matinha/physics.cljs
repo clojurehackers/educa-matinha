@@ -165,10 +165,19 @@
            first
            (resolve-interpenetration p1 normal penetration)
            first)
-       p0))))
+       nil))))
 
-;TODO add to different namespace
 (defonce world (atom {}))
+
+#_(defn collision-orchestrator
+  "when called, checks for any collision between objects in the world"
+  []
+  (let [objects (-> @world vals vec)
+        pairs (combo/combinations objects 2)]
+    (->> pairs
+        (map resolve-collision))))
+
+#_(collision-orchestrator)
 
 (defn create-object!
   "receives the name, position, length, mass, velocity and acceleration
