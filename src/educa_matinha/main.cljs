@@ -5,55 +5,11 @@
    [sablono.core :as sab :include-macros true]
    [educa-matinha.physics :as physics]))
 
-(def tree-vel 0.01)
-
-(defonce trees #{{:pos [0 32]
-                  :len [112 0]
-                  :vel [0 tree-vel]
-                  :acc [0 0]}
-
-                 {:pos [0 160]
-                  :len [112 0]
-                  :vel [0 tree-vel]
-                  :acc [0 0]}
-
-                 {:pos [0 320]
-                  :len [112 0]
-                  :vel [0 tree-vel]
-                  :acc [0 0]}
-
-                 {:pos [0 460]
-                  :len [112 0]
-                  :vel [0 tree-vel]
-                  :acc [0 0]}
-
-                 {:pos [208 16]
-                  :len [112 0]
-                  :vel [0 tree-vel]
-                  :acc [0 0]}
-
-                 {:pos [208 160]
-                  :len [112 0]
-                  :vel [0 tree-vel]
-                  :acc [0 0]}
-
-                 {:pos [208 320]
-                  :len [112 0]
-                  :vel [0 tree-vel]
-                  :acc [0 0]}
-
-                 {:pos [208 480]
-                  :len [112 0]
-                  :vel [0 tree-vel]
-                  :acc [0 0]}})
-
 (def floor 640)
-(def g 0.002)
 (def jump-force -0.01)
 
 (defonce game-state (atom {:started?   false
-                           :paused?    false
-                           :trees      trees}))
+                           :paused?    false}))
 
 (defonce keys-down (atom #{}))
 
@@ -152,17 +108,11 @@
     (assoc-in tree [:pos 1] -96)
     (physics/update-position tree delta-time)))
 
-(defn update-trees [trees delta-time]
-  (->> trees
-       (map #(update-tree % delta-time))
-       set))
-
 (defn tree-penetration
   "given a player, 
    returns the penetration deph of the closest tree"
   [player]
-  (let [collisions (->> @game-state
-                        :trees
+  (let [collisions (->> (map #(physics/get-object (str "tree-" %)) [0 1 2 3 4 5])
                         (map #(physics/resolve-collision player % [0 -1] 0 0)))] 
     (apply merge `(~@collisions))))
 
@@ -177,19 +127,18 @@
         new-player (merge new-player (tree-penetration new-player))]
     new-player))     
 
-(defn change-state! [{:keys [started? paused? trees]} delta-time]
+(defn change-state! [{:keys [started? paused?]} delta-time]
   (when (and started? (not paused?))
     (let [new-player (-> "player"
                          (physics/get-object)
                          (merge (move delta-time))
                          (physics/update-position delta-time)
                          (collision-resolver)
-                         (gravity delta-time))
-          new-trees (update-trees trees delta-time)]
+                         (gravity delta-time))]
       (physics/update-object! "player" new-player)
-      (swap! game-state merge {:trees  new-trees}))))
+      (mapv #(physics/update-object! (str "tree-" %) (update-tree (physics/get-object (str "tree-" %)) delta-time)) [0 1 2 3 4 5]))))
 
-(defn render-game [{:keys [started? paused? trees]}]
+(defn render-game [{:keys [started? paused?]}]
   (sab/html
    [:div.center-container
     [:div.border-container
@@ -204,9 +153,8 @@
           [:a.resume-button {:onClick resume-game!}
            "RESUME"]]
 
-         [(map render-tree trees)
+         [(map #(render-tree (physics/get-object (str "tree-" %))) [0 1 2 3 4 5])
           (render-player (physics/get-object "player"))])
-
        [:div
         [:a.start-button {:onClick start-game!}
          "START"]])]
@@ -226,11 +174,21 @@
 (.addEventListener js/document "keyup" remove-commands)
 
 (defn start-game []
-  (let [start-time (js/performance.now)]
-    (physics/create-object! "player" [160 0] [16 16] [0.05 0] [0 g] 1) 
+  (let [start-time (js/performance.now)
+        tree-vel   0.01
+        g          0.002]
+    
+    ;create player
+    (physics/create-object! "player" [160 0] [16 16] [0.05 0] [0 g] 1)
+
+    ;create constraints
     (physics/create-object! "floor" [0 floor] [320 10] [0 0] [0 0] 0)
     (physics/create-object! "right-wall" [320 0] [10 650] [0 0] [0 0] 0)
     (physics/create-object! "left-wall" [-10 0] [10 650] [0 0] [0 0] 0)
+
+    ;create trees: 
+    (mapv #(physics/create-object! (str "tree-" %) [0 (* % 200)] [112 0] [0 tree-vel] [0 0] 0) [0 1 2])
+    (mapv #(physics/create-object! (str "tree-" %) [208 (- (* % 100) 300 )] [112 0] [0 tree-vel] [0 0] 0) [3 4 5])
 
     (js/requestAnimationFrame (renderer start-time))))
 
