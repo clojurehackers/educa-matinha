@@ -109,17 +109,16 @@
     (physics/update-position tree delta-time)))
 
 (defn tree-penetration
-  "given a player, 
-   returns the penetration deph of the closest tree"
+  "receives the argument player 
+   and returns an updated player with resolved collisions between trees"
   [player]
   (let [collisions (->> (map #(physics/get-object (str "tree-" %)) [0 1 2 3 4 5])
                         (map #(physics/resolve-collision player % [0 -1] 0 0)))] 
     (apply merge `(~@collisions))))
 
-(tree-penetration {})
-
 (defn collision-resolver
-  "receives the player and resolves its current collisions"
+  "receives the argument player 
+   and returns an updated player with resolved collisions"
   [player]
   (let [new-player (merge player (physics/resolve-collision player (physics/get-object "floor") [0 -1] 0.5 0))
         new-player (merge new-player (physics/resolve-collision new-player (physics/get-object "left-wall") [1 0] 1 0))
@@ -182,13 +181,13 @@
     (physics/create-object! "player" [160 0] [16 16] [0.05 0] [0 g] 1)
 
     ;create constraints
-    (physics/create-object! "floor" [0 floor] [320 10] [0 0] [0 0] 0)
+    (physics/create-object! "floor" [0 floor] [320 20] [0 0] [0 0] 0)
     (physics/create-object! "right-wall" [320 0] [10 650] [0 0] [0 0] 0)
     (physics/create-object! "left-wall" [-10 0] [10 650] [0 0] [0 0] 0)
 
     ;create trees: 
-    (mapv #(physics/create-object! (str "tree-" %) [0 (* % 200)] [112 0] [0 tree-vel] [0 0] 0) [0 1 2])
-    (mapv #(physics/create-object! (str "tree-" %) [208 (- (* % 100) 300 )] [112 0] [0 tree-vel] [0 0] 0) [3 4 5])
+    (mapv #(physics/create-object! (str "tree-" %) [0 (* % 200)] [112 5] [0 tree-vel] [0 0] 0) [0 1 2])
+    (mapv #(physics/create-object! (str "tree-" %) [208 (- (* % 100) 300 )] [112 5] [0 tree-vel] [0 0] 0) [3 4 5])
 
     (js/requestAnimationFrame (renderer start-time))))
 
