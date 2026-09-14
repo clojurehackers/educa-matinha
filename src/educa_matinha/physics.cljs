@@ -28,7 +28,7 @@
   [a b]
   (apply + (map * a b)))
 
-(defn update-position
+(defn apply-velocity
   "receives a particle as the first argument,
    time between the current and last mesurement as the second argument,
    returns a particle with new velocity based on current acceleration"
@@ -68,6 +68,19 @@
       (apply-force force)
       (apply-acceleration delta-time)
       (assoc :acc acc)))
+
+(defn change-relative-position
+  "receives a particle as the first argument and the delta-pos as the second, 
+   returns a particle after the position changed by delta-pos"
+  [{:keys [pos]
+    :as   particle} delta-pos]
+  (assoc particle :pos (sum pos delta-pos)))
+
+(defn change-absolute-position
+  "receives a particle as the first argument and the pos as the second, 
+   returns a particle after the position changed to pos"
+  [particle pos]
+  (assoc particle :pos pos))
 
 (defn separating-velocity
   "receives one or two particles and the contact normal,
@@ -191,12 +204,12 @@
 
 (defn update-object!
   [name object]
-  (swap! world merge {(keyword name) object}))
+  (swap! world merge {name object}))
 
 (defn get-object
-  "receive the object"
+  "receives the objects keyword and returns the object from world"
   [name]
-  ((keyword name) @world))
+  (name @world))
 
 (comment
   (def game {:started? false
