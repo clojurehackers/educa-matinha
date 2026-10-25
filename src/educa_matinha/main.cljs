@@ -193,8 +193,8 @@
     (physics/create-object! :left-wall [-10 0] [10 650] [0 0] [0 0] 0)
 
     ;create trees: 
-    (mapv #(physics/create-object! (keyword (str "tree-" %)) [0 (* % 200)] [112 10] [0 0] [0 g] 0.5) [0 1 2])
-    (mapv #(physics/create-object! (keyword (str "tree-" %)) [208 (- (* % 200) 300 )] [112 10] [0 0] [0 g] 0.5) [3 4 5])
+    (mapv #(physics/create-object! (keyword (str "tree-" %)) [0 (* % 200)] [112 20] [0 0] [0 g] 0) [0 1 2])
+    (mapv #(physics/create-object! (keyword (str "tree-" %)) [208 (- (* % 200) 300 )] [112 20] [0 0] [0 g] 0) [3 4 5])
 
     (js/requestAnimationFrame (renderer start-time))))
 

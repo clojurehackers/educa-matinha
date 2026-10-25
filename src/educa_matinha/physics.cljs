@@ -181,16 +181,7 @@
        nil))))
 
 (defonce world (atom {}))
-
-#_(defn collision-orchestrator
-  "when called, checks for any collision between objects in the world"
-  []
-  (let [objects (-> @world vals vec)
-        pairs (combo/combinations objects 2)]
-    (->> pairs
-        (map resolve-collision))))
-
-#_(collision-orchestrator)
+(defonce collisions (atom []))
 
 (defn create-object!
   "receives the name, position, length, mass, velocity and acceleration
@@ -201,6 +192,15 @@
                                      :len  len
                                      :mass mass
                                      :acc  acc}))
+
+(defn create-collision!
+  "receives the names of two objects that possibly colide in the game"
+  [name1 name2 normal restitution]
+  (swap! collisions conj {:objects     [name1 name2]
+                          :normal      normal
+                          :restitution restitution}))
+
+(create-collision! :player :floor [0 -1] 0.5)
 
 (defn update-object!
   [name object]
