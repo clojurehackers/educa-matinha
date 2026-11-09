@@ -6,7 +6,6 @@
    [educa-matinha.physics :as physics]))
 
 (def floor 640)
-(def jump-force -0.01)
 
 (defonce game-state (atom {:started?   false
                            :paused?    false}))
@@ -48,11 +47,6 @@
                         :position         "absolute"
                         :background-color "orange"}}])))
 
-(defn gravity
-  "returns an updated player"
-  [player delta-time]
-  (physics/apply-acceleration player delta-time))
-
 (defn remove-commands [e]
   (let [code (str (.-code e))
         _    (.preventDefault e)]
@@ -89,19 +83,20 @@
 
 (defn move
   "returns an updated player"
-  [delta-time]
-  (let [player (physics/get-object :player)]
-    (cond->> {}
-     (contains? @keys-down "Space")
-      (merge (physics/apply-instant-force player [0 jump-force] delta-time))
+  []
+  (let [g          0.002
+        jump-force -0.01]
+    (cond->> [0 g]
+      (contains? @keys-down "Space")
+      (physics/sum [0 jump-force])
 
       (contains? @keys-down "KeyD")
-      (merge (physics/change-relative-position player [5 0]))
+      (physics/sum [0.005 0])
 
       (contains? @keys-down "KeyA")
-      (merge (physics/change-relative-position player [-5 0])))))
+      (physics/sum [-0.005 0]))))
 
-(defn update-tree [{:keys [pos] 
+#_(defn update-tree [{:keys [pos] 
                     :as   tree} delta-acc delta-time]
   (if (> (second pos) floor)
     (physics/change-absolute-position tree [(first pos) -96])
@@ -129,20 +124,19 @@
 
 (defn change-state! [{:keys [started? paused?]} delta-time]
   (when (and started? (not paused?))
-    (let [new-player (-> :player
+    (let [res-force  (move)
+          _ (println res-force)
+          new-player (-> :player
                          (physics/get-object)
-                         (merge (move delta-time))
-                         (physics/apply-velocity delta-time)
-                         (collision-resolver)
-                         (gravity delta-time))
-          
+                         (physics/apply-force res-force delta-time)
+                         (collision-resolver))
           acc-y      (-> new-player :acc second)
           new-y      (-> new-player :pos second)]
       (physics/update-object! :player new-player)
       #_(if (< new-y 200)
-        ((physics/update-object! :player (assoc-in new-player [:pos 1] 200))
-         (mapv #(physics/update-object! (keyword (str "tree-" %)) (update-tree (physics/get-object (keyword (str "tree-" %))) acc-y delta-time)) [0 1 2 3 4 5]))
-        (physics/update-object! :player new-player)))))
+          ((physics/update-object! :player (assoc-in new-player [:pos 1] 200))
+           (mapv #(physics/update-object! (keyword (str "tree-" %)) (update-tree (physics/get-object (keyword (str "tree-" %))) acc-y delta-time)) [0 1 2 3 4 5]))
+          (physics/update-object! :player new-player)))))
 
 (defn render-game [{:keys [started? paused?]}]
   (sab/html

@@ -28,46 +28,49 @@
   [a b]
   (apply + (map * a b)))
 
-(defn apply-velocity
+(defn calculate-pos
   "receives a particle as the first argument,
    time between the current and last mesurement as the second argument,
    returns a particle with new velocity based on current acceleration"
-  [{:keys [pos vel acc]
-    :as   particle}
-   delta-time]
-  (let [delta-pos1 (ax delta-time vel)
-        delta-pos2 (ax (* delta-time delta-time 0.5) acc)
-        new-pos    (sum pos delta-pos1 delta-pos2)]
-    (assoc particle :pos new-pos)))
+  [{:keys [pos vel]} acc delta-time]
+   (let [delta-pos1 (ax delta-time vel)
+         delta-pos2 (ax (* delta-time delta-time 0.5) acc)
+         new-pos    (sum pos delta-pos1 delta-pos2)]
+     new-pos))
+
+(defn calculate-vel
+  "receives a particle as the first argument,
+   time between the current and last mesurement as the second argument,
+   returns a particle with new velocity based on current acceleration"
+  [{:keys [vel]} acc delta-time]
+  (let [delta-vel (ax delta-time acc)
+        new-vel   (sum vel delta-vel)]
+    new-vel))
 
 (defn apply-acceleration
   "receives a particle as the first argument,
    time between the current and last mesurement as the second argument,
    returns a particle with new velocity based on current acceleration"
-  [{:keys [vel acc] 
-    :as   particle} delta-time]
-  (let [delta-vel (ax delta-time acc)
-        new-vel   (sum vel delta-vel)]
-    (assoc particle :vel new-vel)))
+  [particle acc delta-time]
+  (let [new-pos (calculate-pos particle acc delta-time)
+        new-vel (calculate-vel particle acc delta-time)]
+    (assoc particle :pos new-pos :vel new-vel)))
 
-(defn apply-force 
+(defn calculate-acc 
   "receives a particle as first argument and force as second argument
    retuns the particle after the force was applied"
-  [{:keys [acc mass] :as particle} force]
+  [{:keys [acc mass]} force]
   (let [delta-acc (ax (/ 1 mass) force)
         new-acc   (sum acc delta-acc)]
-    (assoc particle :acc new-acc)))
+    new-acc))
 
-(defn apply-instant-force
+(defn apply-force
   "receives a particle as the first argument, force as the second argument 
    and delta-time as the third argument
    retuns the particle after the force was applied for an instant"
-  [{:keys [acc]
-    :as   particle} force delta-time]
-  (-> particle
-      (apply-force force)
-      (apply-acceleration delta-time)
-      (assoc :acc acc)))
+  [particle res-force delta-time]
+  (let [acc (calculate-acc particle res-force)] 
+    (apply-acceleration particle acc delta-time)))
 
 (defn change-relative-position
   "receives a particle as the first argument and the delta-pos as the second, 
