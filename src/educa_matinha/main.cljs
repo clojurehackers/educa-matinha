@@ -125,18 +125,11 @@
 (defn change-state! [{:keys [started? paused?]} delta-time]
   (when (and started? (not paused?))
     (let [res-force  (move)
-          _ (println res-force)
           new-player (-> :player
                          (physics/get-object)
                          (physics/apply-force res-force delta-time)
-                         (collision-resolver))
-          acc-y      (-> new-player :acc second)
-          new-y      (-> new-player :pos second)]
-      (physics/update-object! :player new-player)
-      #_(if (< new-y 200)
-          ((physics/update-object! :player (assoc-in new-player [:pos 1] 200))
-           (mapv #(physics/update-object! (keyword (str "tree-" %)) (update-tree (physics/get-object (keyword (str "tree-" %))) acc-y delta-time)) [0 1 2 3 4 5]))
-          (physics/update-object! :player new-player)))))
+                         (collision-resolver))]
+      (physics/update-object! :player new-player))))
 
 (defn render-game [{:keys [started? paused?]}]
   (sab/html
