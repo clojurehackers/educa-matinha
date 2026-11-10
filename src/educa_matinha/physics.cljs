@@ -2,7 +2,6 @@
   "a particle is defined as a map of keys as the first argument where each key is a vector of coordinates
     :pos vector of the particle's position in space
     :vel vector of the particle's velocity
-    :acc vector of the particle's acceleration
     :mass real inverse of the mass")
 
 (def penetration-slop 0.01)
@@ -59,10 +58,8 @@
 (defn calculate-acc 
   "receives a particle as first argument and force as second argument
    retuns the particle after the force was applied"
-  [{:keys [acc mass]} force]
-  (let [delta-acc (ax (/ 1 mass) force)
-        new-acc   (sum acc delta-acc)]
-    new-acc))
+  [{:keys [mass]} force]
+  (ax (/ 1 mass) force))
 
 (defn apply-force
   "receives a particle as the first argument, force as the second argument 
@@ -189,12 +186,11 @@
 (defn create-object!
   "receives the name, position, length, mass, velocity and acceleration
    mutates the word, adding the object"
-  [name pos len vel acc mass]
+  [name pos len vel mass]
   (swap! world assoc (keyword name) {:pos  pos
                                      :vel  vel
                                      :len  len
-                                     :mass mass
-                                     :acc  acc}))
+                                     :mass mass}))
 
 (defn create-collision!
   "receives the names of two objects that possibly colide in the game"
@@ -220,12 +216,10 @@
              :player   {:pos  [160 642]
                         :len  [16 16]
                         :vel  [0.05 3]
-                        :acc  [0 0.002]
                         :mass 1}
              :floor    {:pos  [0 640]
                         :len  [320 10]
                         :vel  [0 0]
-                        :acc  [0 0]
                         :mass 0}})
   (separating-velocity (:player game) [0 -1])
   (separating-velocity (:player game) (:floor game) [0 -1])

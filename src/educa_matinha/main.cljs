@@ -84,7 +84,7 @@
 (defn move
   "returns an updated player"
   []
-  (let [g          0.002
+  (let [g          0.003
         jump-force -0.01]
     (cond->> [0 g]
       (contains? @keys-down "Space")
@@ -168,20 +168,19 @@
 
 (defn start-game []
   (let [start-time (js/performance.now)
-        tree-vel   0.01
-        g          0.002]
+        tree-vel   0.01]
     
     ;create player
-    (physics/create-object! :player [160 floor] [16 16] [0.05 0] [0 g] 1)
+    (physics/create-object! :player [160 floor] [16 16] [0.05 0] 1)
 
     ;create constraints
-    (physics/create-object! :floor [0 floor] [320 20] [0 0] [0 0] 0)
-    (physics/create-object! :right-wall [320 0] [10 650] [0 0] [0 0] 0)
-    (physics/create-object! :left-wall [-10 0] [10 650] [0 0] [0 0] 0)
+    (physics/create-object! :floor [0 floor] [320 20] [0 0] 0)
+    (physics/create-object! :right-wall [320 0] [10 650] [0 0] 0)
+    (physics/create-object! :left-wall [-10 0] [10 650] [0 0] 0)
 
     ;create trees: 
-    (mapv #(physics/create-object! (keyword (str "tree-" %)) [0 (* % 200)] [112 20] [0 0] [0 g] 0) [0 1 2])
-    (mapv #(physics/create-object! (keyword (str "tree-" %)) [208 (- (* % 200) 300 )] [112 20] [0 0] [0 g] 0) [3 4 5])
+    (mapv #(physics/create-object! (keyword (str "tree-" %)) [0 (* % 200)] [112 20] [0 0] 0) [0 1 2])
+    (mapv #(physics/create-object! (keyword (str "tree-" %)) [208 (- (* % 200) 300 )] [112 20] [0 0] 0) [3 4 5])
 
     (js/requestAnimationFrame (renderer start-time))))
 
